@@ -1,10 +1,4 @@
 # prospecting.py — Sourcing de prospects via Apollo.io API
-#
-# Ce fichier prend un ICP (généré par icp.py) et retourne une liste
-# de prospects correspondants avec leurs coordonnées.
-#
-# Apollo.io tier gratuit : 50 crédits/mois (suffisant pour tester)
-# Apollo.io tier basic : ~49€/mois pour un volume plus important
 
 import os
 import requests
@@ -15,12 +9,21 @@ load_dotenv()
 APOLLO_API_KEY = os.getenv("APOLLO_API_KEY")
 APOLLO_BASE_URL = "https://api.apollo.io/v1"
 
-# Correspondance pays → code pour Apollo
-COUNTRY_CODES = {
-    "France": "France",
-    "Belgique": "Belgium",
-    "Suisse": "Switzerland",
-    "Luxembourg": "Luxembourg"
+# Régions → liste de pays pour Apollo
+REGION_MAP = {
+    "Europe":                  ["France", "Belgium", "Switzerland", "Germany", "United Kingdom",
+                                "Netherlands", "Spain", "Italy", "Portugal", "Sweden",
+                                "Denmark", "Norway", "Finland", "Austria", "Luxembourg"],
+    "Moyen-Orient":            ["United Arab Emirates", "Saudi Arabia", "Qatar", "Kuwait",
+                                "Bahrain", "Oman", "Jordan", "Israel", "Lebanon"],
+    "Asie-Pacifique":          ["Japan", "Singapore", "India", "South Korea", "Hong Kong",
+                                "Taiwan", "Thailand", "Malaysia", "Indonesia", "Vietnam",
+                                "Australia", "New Zealand"],
+    "US / Canada / Mexique":   ["United States", "Canada", "Mexico"],
+    "Amérique du Sud":         ["Brazil", "Argentina", "Colombia", "Chile", "Peru",
+                                "Ecuador", "Uruguay"],
+    "Afrique & Océan Indien":  ["Mauritius", "South Africa", "Kenya", "Morocco", "Senegal",
+                                "Tunisia", "Egypt", "Ivory Coast", "Ghana", "Nigeria"],
 }
 
 # Correspondance taille → format Apollo
@@ -33,17 +36,10 @@ SIZE_MAP = {
 }
 
 
-def search_prospects(icp: dict, country: str = "France", num_results: int = 25) -> list:
+def search_prospects(icp: dict, country: str = "Europe", num_results: int = 25) -> list:
     """
-    Recherche des prospects correspondant à l'ICP via Apollo.io.
-    
-    Args:
-        icp: Dictionnaire ICP généré par icp.py
-        country: Pays cible (France, Belgique, Suisse, Luxembourg)
-        num_results: Nombre de prospects à retourner (max 25 sur tier gratuit)
-    
-    Returns:
-        Liste de dicts avec les infos de chaque prospect.
+    Recherche des prospects via Apollo.io.
+    Le paramètre `country` correspond à une région du REGION_MAP.
     """
     if not APOLLO_API_KEY:
         raise ValueError(
@@ -51,16 +47,17 @@ def search_prospects(icp: dict, country: str = "France", num_results: int = 25) 
             "Ajoute-la dans le fichier .env (app.apollo.io > Settings > API)"
         )
 
+    locations = REGION_MAP.get(country, REGION_MAP["Europe"])
+
     payload = {
-        "api_key": APOLLO_API_KEY,
-        "page": 1,
-        "per_page": num_results,
-        "person_titles": icp.get("job_titles", []),
-        "organization_locations": [COUNTRY_CODES.get(country, "France")],
+        "api_key":              APOLLO_API_KEY,
+        "page":                 1,
+        "per_page":             num_results,
+        "person_titles":        icp.get("job_titles", []),
+        "organization_locations": locations,
         "contact_email_status": ["verified", "guessed"],
     }
 
-    # Filtre taille d'entreprise
     sizes = icp.get("company_size", ["11-50", "51-200"])
     if sizes:
         payload["organization_num_employees_ranges"] = [
@@ -74,24 +71,20 @@ def search_prospects(icp: dict, country: str = "France", num_results: int = 25) 
     )
 
     if response.status_code != 200:
-        raise Exception(
-            f"Erreur Apollo API {response.status_code} : {response.text[:200]}"
-        )
+        raise Exception(f"Erreur Apollo API {response.status_code} : {response.text[:200]}")
 
     people = response.json().get("people", [])
 
-    # Mise en forme pour affichage Streamlit
     prospects = []
     for person in people:
         org = person.get("organization") or {}
-        email = person.get("email", "")
         prospects.append({
             "Nom":        f"{person.get('first_name', '')} {person.get('last_name', '')}".strip(),
             "Poste":      person.get("title", ""),
             "Entreprise": org.get("name", ""),
             "Secteur":    org.get("industry", ""),
             "Taille":     org.get("estimated_num_employees", ""),
-            "Email":      email,
+            "Email":      person.get("email", ""),
             "LinkedIn":   person.get("linkedin_url", ""),
             "Ville":      person.get("city", ""),
         })

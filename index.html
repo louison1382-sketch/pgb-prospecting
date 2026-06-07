@@ -6,208 +6,278 @@
     <title>BUREAU. Prospecting</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,700;14..32,800;14..32,900&family=JetBrains+Mono:wght@400;500;700&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; cursor: none; }
 
         :root {
-            --lime: #D4F02A;
-            --ink: #000;
-            --paper: #F0F0F0;
-            --charcoal: #404040;
-            --grey60: #787878;
-            --grey30: #B0B0B0;
-            --grey20: #C8C8C8;
-            --border-dark: #1a1a1a;
-            --pad-h: clamp(1.5rem, 4vw, 4rem);
+            --lime:    #D4F02A;
+            --ink:     #000;
+            --paper:   #F0F0F0;
+            --ch:      #404040;
+            --g60:     #787878;
+            --g30:     #B0B0B0;
+            --g20:     #C8C8C8;
+            --dark:    #1a1a1a;
+            --ph: clamp(1.5rem, 4vw, 4rem);
         }
 
-        body { font-family: 'Inter', sans-serif; background: var(--paper); color: var(--ink); min-height: 100vh; }
+        html { font-size: 16px; }
 
-        /* CURSEUR */
-        #cursor {
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            background: var(--paper);
+            color: var(--ink);
+            min-height: 100vh;
+        }
+
+        /* CURSOR */
+        #cur {
             position: fixed; pointer-events: none; z-index: 9999;
             mix-blend-mode: difference;
             width: 24px; height: 24px; border-radius: 50%;
             background: var(--lime);
-            box-shadow: 0 0 14px 5px rgba(212,240,42,0.35);
+            box-shadow: 0 0 14px 5px rgba(212,240,42,.35);
             transform: translate(-50%,-50%);
             transition: width .4s cubic-bezier(.25,.46,.45,.94), height .4s cubic-bezier(.25,.46,.45,.94);
+            will-change: left, top;
         }
-        #cursor.hover { width: 48px; height: 48px; }
-        #cursor-aura {
+        #cur.h { width: 48px; height: 48px; }
+        #aura {
             position: fixed; pointer-events: none; z-index: 9998;
             width: 64px; height: 64px; border-radius: 50%;
-            background: radial-gradient(circle, rgba(212,240,42,0.1) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(212,240,42,.1) 0%, transparent 70%);
             transform: translate(-50%,-50%);
+            will-change: left, top;
         }
 
-        /* CONTAINER */
-        .wrap { max-width: 1200px; margin: 0 auto; padding: 0 var(--pad-h); }
-        .wrap-form { max-width: 720px; margin: 0 auto; padding: 0 var(--pad-h); }
+        /* LAYOUT */
+        .W  { max-width: 1200px; margin: 0 auto; padding: 0 var(--ph); }
+        .WF { max-width:  760px; margin: 0 auto; padding: 0 var(--ph); }
 
         /* NAV */
-        nav { background: var(--ink); height: 56px; position: sticky; top: 0; z-index: 100; }
-        .nav-inner { height: 56px; display: flex; align-items: center; justify-content: space-between; }
-        .logo { display: inline-flex; align-items: center; text-decoration: none; }
-        .logo-name { font-family: 'Inter', sans-serif; font-weight: 700; font-size: 15px; color: #fff; margin-right: 9px; }
-        .logo-badge { display: inline-flex; padding: 5px 11px; background: #2A2A2E; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.07em; color: var(--lime); }
+        nav { background: var(--ink); height: 56px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--dark); }
+        .nav-i { height: 56px; display: flex; align-items: center; justify-content: space-between; }
+        .logo { display: inline-flex; align-items: center; text-decoration: none; gap: 0; }
+        .logo-n { font-weight: 700; font-size: 15px; color: #fff; margin-right: 9px; letter-spacing: .01em; }
+        .logo-b { display: inline-flex; padding: 5px 11px; background: #2A2A2E; font-weight: 700; font-size: 13px; letter-spacing: .07em; color: var(--lime); }
         .nav-links { display: flex; gap: 2rem; }
-        .nav-links a { font-family: 'JetBrains Mono', monospace; color: var(--charcoal); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; text-decoration: none; transition: color .15s; }
-        .nav-links a:hover { color: var(--grey60); }
+        .nav-links a { font-family: 'JetBrains Mono', monospace; color: #333; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; text-decoration: none; transition: color .15s; }
+        .nav-links a:hover { color: var(--g60); }
 
         /* HERO */
-        .hero-section { background: var(--ink); padding: 5rem 0 2.5rem; }
-        .step-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--charcoal); margin-bottom: 1.5rem; }
-        .hero h1 { font-size: clamp(3rem, 6vw, 5rem); font-weight: 900; color: #fff; line-height: 0.95; letter-spacing: -0.04em; }
-        .hero h1 em { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; color: var(--lime); letter-spacing: -0.02em; }
-        .hero-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--charcoal); margin-top: 2rem; }
+        .hero-s { background: var(--ink); padding: 5rem 0 3rem; }
+        .mono-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: #333; margin-bottom: 1.5rem; }
+        .hero-s h1 {
+            font-family: 'Inter', sans-serif;
+            font-size: clamp(3.2rem, 6.5vw, 5.2rem);
+            font-weight: 900;
+            font-optical-sizing: auto;
+            font-synthesis: none;
+            color: #fff;
+            line-height: .95;
+            letter-spacing: -.04em;
+        }
+        .hero-s h1 em {
+            font-family: 'Instrument Serif', serif;
+            font-style: italic;
+            font-weight: 400;
+            color: var(--lime);
+            letter-spacing: -.02em;
+        }
+        .hero-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #333; margin-top: 2.5rem; }
 
         /* STEP FLOW */
-        .step-flow { display: grid; grid-template-columns: 1fr 1fr 1fr; background: var(--ink); border-top: 1px solid var(--border-dark); }
-        .step-item { padding: 1rem var(--pad-h); display: flex; align-items: center; gap: .75rem; border-right: 1px solid var(--border-dark); }
-        .step-item:last-child { border-right: none; }
-        .step-num { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #1a1a1a; transition: color .3s; }
-        .step-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #1a1a1a; transition: color .3s; }
-        .step-item.active .step-num { color: var(--lime); }
-        .step-item.active .step-label { color: #fff; }
-        .step-item.done .step-num, .step-item.done .step-label { color: #2a2a2a; }
+        .steps { display: grid; grid-template-columns: 1fr 1fr 1fr; background: var(--ink); border-top: 1px solid var(--dark); }
+        .si { padding: 1rem var(--ph); display: flex; align-items: center; gap: .75rem; border-right: 1px solid var(--dark); }
+        .si:last-child { border-right: none; }
+        .sn { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: .08em; color: #222; transition: color .3s; }
+        .sl { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: #222; transition: color .3s; }
+        .si.active .sn { color: var(--lime); }
+        .si.active .sl { color: #fff; }
+        .si.done .sn, .si.done .sl { color: #2a2a2a; }
 
         /* FORM SECTION */
-        #formSection { background: var(--paper); padding: 5rem 0 6rem; }
-        .section-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--grey60); margin-bottom: 2.5rem; }
-        .field-group { margin-bottom: 1.75rem; }
-        .field-label { display: block; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--charcoal); font-weight: 600; margin-bottom: .625rem; }
+        #formSection { background: var(--paper); padding: 6rem 0 7rem; }
+
+        .form-eyebrow {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
+            color: var(--g30); margin-bottom: 1rem;
+        }
+        .form-headline {
+            font-family: 'Inter', sans-serif;
+            font-optical-sizing: auto;
+            font-size: clamp(1.6rem, 3vw, 2.4rem);
+            font-weight: 800;
+            letter-spacing: -.03em;
+            line-height: 1;
+            color: var(--ink);
+            margin-bottom: .625rem;
+        }
+        .form-headline .dot { color: var(--lime); }
+        .form-desc {
+            font-size: .82rem; font-weight: 300; color: var(--g60);
+            margin-bottom: 3rem; line-height: 1.6;
+        }
+
+        .fl { margin-bottom: 1.75rem; }
+        .fl-label {
+            display: block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+            color: var(--ch); font-weight: 600; margin-bottom: .625rem;
+        }
 
         textarea {
-            width: 100%; background: #fff; border: 1px solid var(--grey20); border-radius: 0;
-            padding: 1.125rem 1.25rem; font-size: .9rem; font-family: 'Inter', sans-serif;
-            font-weight: 300; color: var(--ink); line-height: 1.7; resize: vertical; outline: none;
+            width: 100%; background: #fff;
+            border: 1px solid var(--g20); border-radius: 0;
+            padding: 1.125rem 1.25rem;
+            font-family: 'Inter', sans-serif; font-size: .875rem; font-weight: 300;
+            color: var(--ink); line-height: 1.75; resize: vertical; outline: none;
             transition: border-color .15s;
+            -webkit-font-smoothing: antialiased;
         }
         textarea:focus { border-color: var(--ink); }
-        textarea::placeholder { color: var(--grey30); }
+        textarea::placeholder { color: var(--g30); }
 
-        /* UPLOAD ZONE */
-        .upload-divider { display: flex; align-items: center; gap: 1rem; margin: 1.25rem 0; }
-        .upload-divider::before, .upload-divider::after { content: ''; flex: 1; height: 1px; background: var(--grey20); }
-        .upload-divider span { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--grey30); white-space: nowrap; }
+        /* Upload */
+        .upload-sep { display: flex; align-items: center; gap: 1rem; margin: 1.25rem 0; }
+        .upload-sep::before, .upload-sep::after { content: ''; flex: 1; height: 1px; background: var(--g20); }
+        .upload-sep span { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--g30); white-space: nowrap; }
 
-        .upload-zone {
-            border: 1px dashed var(--grey20); background: #fff;
-            padding: 1.25rem 1.5rem;
+        .upload-z {
+            border: 1px dashed var(--g20); background: #fff;
+            padding: 1.125rem 1.25rem;
             display: flex; align-items: center; justify-content: space-between;
-            transition: border-color .2s, background .2s;
+            transition: border-color .2s;
         }
-        .upload-zone:hover, .upload-zone.dragover { border-color: var(--ink); background: #fafafa; }
-        .upload-left { display: flex; align-items: center; gap: .875rem; }
-        .upload-icon { font-size: 1rem; color: var(--grey60); line-height: 1; }
-        .upload-texts {}
-        .upload-main { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--charcoal); font-weight: 600; }
-        .upload-hint { font-size: .75rem; color: var(--grey30); margin-top: 2px; }
-        .upload-btn { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--grey60); border: 1px solid var(--grey20); padding: .4rem .875rem; background: transparent; transition: all .15s; white-space: nowrap; }
-        .upload-btn:hover { border-color: var(--ink); color: var(--ink); }
+        .upload-z:hover, .upload-z.dg { border-color: var(--ink); }
+        .upload-lft { display: flex; align-items: center; gap: .875rem; }
+        .upload-ic { color: var(--g60); font-size: 1rem; line-height: 1; }
+        .upload-main { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ch); font-weight: 600; }
+        .upload-hint { font-size: .72rem; color: var(--g30); margin-top: 2px; }
+        .upload-action { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--g60); border: 1px solid var(--g20); padding: .4rem .875rem; background: transparent; white-space: nowrap; transition: all .15s; }
+        .upload-action:hover { border-color: var(--ink); color: var(--ink); }
 
-        .file-loaded { display: none; align-items: center; justify-content: space-between; padding: .875rem 1.25rem; background: #fff; border: 1px solid var(--ink); }
-        .file-loaded-info { display: flex; align-items: center; gap: .75rem; }
-        .file-loaded-dot { width: 6px; height: 6px; background: var(--lime); flex-shrink: 0; }
-        .file-loaded-name { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.08em; color: var(--ink); }
-        .file-clear { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--grey60); background: none; border: none; letter-spacing: 0.08em; text-transform: uppercase; padding: .25rem .5rem; transition: color .15s; }
-        .file-clear:hover { color: var(--ink); }
+        .file-ok { display: none; align-items: center; justify-content: space-between; padding: .875rem 1.25rem; background: #fff; border: 1px solid var(--ink); }
+        .file-ok-l { display: flex; align-items: center; gap: .75rem; }
+        .file-dot { width: 6px; height: 6px; background: var(--lime); flex-shrink: 0; }
+        .file-name { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .06em; color: var(--ink); }
+        .file-rm { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--g60); background: none; border: none; letter-spacing: .08em; text-transform: uppercase; transition: color .15s; }
+        .file-rm:hover { color: var(--ink); }
 
-        /* ROW */
-        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.75rem; }
+        /* PARAMS ROW */
+        .params-eyebrow {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
+            color: var(--g30); margin: 2.5rem 0 1.25rem;
+            padding-top: 2.5rem; border-top: 1px solid var(--g20);
+        }
+        .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+
+        /* Underline select */
+        .select-wrap { position: relative; }
         select {
-            width: 100%; background: #fff; border: 1px solid var(--grey20); border-radius: 0;
-            padding: .75rem 1rem; font-size: .875rem; font-family: 'Inter', sans-serif;
+            width: 100%; background: transparent;
+            border: none; border-bottom: 1px solid var(--g20); border-radius: 0;
+            padding: .625rem 1.75rem .625rem 0;
+            font-family: 'Inter', sans-serif; font-size: .875rem; font-weight: 400;
             color: var(--ink); appearance: none; outline: none; transition: border-color .15s;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23787878' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-            background-repeat: no-repeat; background-position: right 1rem center;
+            -webkit-font-smoothing: antialiased;
         }
-        select:focus { border-color: var(--ink); }
-        .slider-row { display: flex; align-items: center; gap: 1rem; padding-top: .5rem; }
-        input[type="range"] { flex: 1; -webkit-appearance: none; height: 2px; background: var(--grey20); outline: none; }
-        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--ink); border-radius: 0; }
-        input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; background: var(--ink); border-radius: 0; border: none; }
-        .slider-val { font-family: 'JetBrains Mono', monospace; font-size: .8rem; font-weight: 700; color: var(--ink); min-width: 20px; text-align: right; }
+        select:focus { border-bottom-color: var(--ink); }
+        .select-arrow { position: absolute; right: 0; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--g60); font-size: .6rem; }
 
-        .btn-primary {
+        /* Slider */
+        .slider-row { display: flex; align-items: center; gap: 1rem; padding-top: .5rem; border-bottom: 1px solid var(--g20); padding-bottom: .625rem; }
+        input[type=range] { flex: 1; -webkit-appearance: none; height: 1px; background: var(--g20); outline: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; background: var(--ink); border-radius: 0; }
+        input[type=range]::-moz-range-thumb { width: 12px; height: 12px; background: var(--ink); border-radius: 0; border: none; }
+        .sv { font-family: 'JetBrains Mono', monospace; font-size: .8rem; font-weight: 700; color: var(--ink); min-width: 20px; text-align: right; }
+
+        /* CTA */
+        .btn-p {
             width: 100%; margin-top: 2.5rem;
             background: var(--ink); color: var(--lime); border: none;
             padding: 1.2rem;
             font-family: 'JetBrains Mono', monospace; font-size: .72rem; font-weight: 700;
-            letter-spacing: 0.16em; text-transform: uppercase;
+            letter-spacing: .16em; text-transform: uppercase;
             display: flex; align-items: center; justify-content: center; gap: .75rem;
             transition: background .15s;
         }
-        .btn-primary:hover { background: #1a1a1a; }
-        .btn-primary:disabled { background: #333; color: #555; }
+        .btn-p:hover { background: #1a1a1a; }
+        .btn-p:disabled { background: #222; color: #444; }
 
         /* LOADING */
         #loading { display: none; background: var(--ink); padding: 5rem 0; }
-        .loading-steps { display: flex; flex-direction: column; gap: 1.5rem; }
-        .loading-step { display: flex; align-items: center; gap: 1rem; opacity: .15; transition: opacity .5s; }
-        .loading-step.active { opacity: 1; }
-        .loading-step.done { opacity: .3; }
-        .loading-dot { width: 5px; height: 5px; background: var(--lime); flex-shrink: 0; }
-        .loading-step.active .loading-dot { animation: blink 1s ease-in-out infinite; }
-        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.15} }
-        .loading-text { font-family: 'JetBrains Mono', monospace; font-size: .8rem; color: #333; letter-spacing: .06em; }
-        .loading-step.active .loading-text { color: #fff; }
-        .loading-step.done .loading-text { color: #222; }
+        .ls-wrap { display: flex; flex-direction: column; gap: 1.5rem; }
+        .ls { display: flex; align-items: center; gap: 1rem; opacity: .12; transition: opacity .5s; }
+        .ls.a { opacity: 1; }
+        .ls.d { opacity: .3; }
+        .ls-dot { width: 5px; height: 5px; background: var(--lime); flex-shrink: 0; }
+        .ls.a .ls-dot { animation: bl 1s ease-in-out infinite; }
+        @keyframes bl { 0%,100%{opacity:1} 50%{opacity:.1} }
+        .ls-t { font-family: 'JetBrains Mono', monospace; font-size: .8rem; color: #2a2a2a; letter-spacing: .06em; }
+        .ls.a .ls-t { color: #fff; }
+        .ls.d .ls-t { color: #222; }
 
         /* ERROR */
-        .error-bar { display: none; background: #0d0000; border-left: 2px solid #cc2200; padding: .875rem var(--pad-h); font-family: 'JetBrains Mono', monospace; font-size: .72rem; color: #ff6050; letter-spacing: .04em; }
+        .err { display: none; background: #0d0000; border-left: 2px solid #c22; padding: .875rem var(--ph); font-family: 'JetBrains Mono', monospace; font-size: .72rem; color: #f65; letter-spacing: .04em; }
 
         /* RESULTS */
         #results { display: none; background: var(--ink); }
-        .results-header { padding: 3rem 0 2rem; display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--border-dark); }
-        .results-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--charcoal); }
-        .results-count { font-size: 2.8rem; font-weight: 900; color: #fff; letter-spacing: -0.04em; }
-        .results-count em { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; color: var(--lime); }
+        .r-head { padding: 3rem 0 2rem; display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--dark); }
+        .r-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: #333; }
+        .r-count { font-family: 'Inter', sans-serif; font-optical-sizing: auto; font-size: 2.8rem; font-weight: 900; color: #fff; letter-spacing: -.04em; }
+        .r-count em { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; color: var(--lime); }
 
-        /* ICP */
-        .icp-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid var(--border-dark); margin-top: 1px; }
-        .icp-col { padding: 1.75rem var(--pad-h); border-right: 1px solid var(--border-dark); }
-        .icp-col:last-child { border-right: none; }
-        .icp-col-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: #2a2a2a; font-weight: 700; margin-bottom: 1rem; }
-        .icp-tag { display: block; font-size: .73rem; font-weight: 300; color: var(--grey60); padding: .3rem 0; border-bottom: 1px solid #111; line-height: 1.45; }
-        .icp-tag:last-child { border-bottom: none; }
+        /* ICP GRID */
+        .icp { display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid var(--dark); }
+        .icp-c { padding: 1.75rem var(--ph); border-right: 1px solid var(--dark); }
+        .icp-c:last-child { border-right: none; }
+        .icp-l { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: #2a2a2a; font-weight: 700; margin-bottom: 1rem; }
+        .icp-t { display: block; font-size: .73rem; font-weight: 300; color: var(--g60); padding: .3rem 0; border-bottom: 1px solid #111; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+        .icp-t:last-child { border-bottom: none; }
 
         /* ANGLE */
-        .angle-block { background: var(--lime); padding: 1.5rem var(--pad-h); display: flex; align-items: flex-start; gap: 1.5rem; }
-        .angle-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: #404040; font-weight: 700; white-space: nowrap; padding-top: .2rem; }
-        .angle-text { font-size: .85rem; font-weight: 500; color: var(--ink); line-height: 1.6; }
+        .angle { background: var(--lime); padding: 1.5rem var(--ph); display: flex; align-items: flex-start; gap: 1.5rem; }
+        .angle-l { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: #404040; font-weight: 700; white-space: nowrap; padding-top: .2rem; }
+        .angle-t { font-size: .85rem; font-weight: 500; color: var(--ink); line-height: 1.6; -webkit-font-smoothing: antialiased; }
 
         /* PROSPECTS */
-        .prospects-list { border-top: 1px solid var(--border-dark); }
-        .prospect-header { display: grid; grid-template-columns: 2.5fr 2fr 1fr 2.2fr; gap: 1rem; padding: .75rem var(--pad-h); border-bottom: 1px solid var(--border-dark); }
-        .prospect-header-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: #222; font-weight: 700; }
-        .prospect-row { display: grid; grid-template-columns: 2.5fr 2fr 1fr 2.2fr; gap: 1rem; padding: 1rem var(--pad-h); border-bottom: 1px solid #111; align-items: center; transition: background .1s; }
-        .prospect-row:hover { background: #080808; }
-        .prospect-row:last-child { border-bottom: none; }
-        .p-name { font-size: .82rem; font-weight: 600; color: #fff; }
-        .p-company { font-family: 'JetBrains Mono', monospace; font-size: .67rem; color: #333; margin-top: 3px; letter-spacing: .02em; }
-        .p-title { font-size: .75rem; font-weight: 300; color: var(--grey60); }
-        .p-size { font-family: 'JetBrains Mono', monospace; font-size: .67rem; color: #333; letter-spacing: .04em; }
-        .p-email { font-family: 'JetBrains Mono', monospace; font-size: .67rem; color: #6666cc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .p-email.none { color: #222; }
+        .p-list { border-top: 1px solid var(--dark); }
+        .p-head { display: grid; grid-template-columns: 2.5fr 2fr 1fr 2.2fr; gap: 1rem; padding: .75rem var(--ph); border-bottom: 1px solid var(--dark); }
+        .p-hl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: #222; font-weight: 700; }
+        .p-row { display: grid; grid-template-columns: 2.5fr 2fr 1fr 2.2fr; gap: 1rem; padding: 1rem var(--ph); border-bottom: 1px solid #111; align-items: center; transition: background .1s; }
+        .p-row:hover { background: #060606; }
+        .p-row:last-child { border-bottom: none; }
+        .p-n { font-size: .82rem; font-weight: 600; color: #fff; -webkit-font-smoothing: antialiased; }
+        .p-co { font-family: 'JetBrains Mono', monospace; font-size: .67rem; color: #2a2a2a; margin-top: 3px; letter-spacing: .02em; }
+        .p-ti { font-size: .75rem; font-weight: 300; color: var(--g60); -webkit-font-smoothing: antialiased; }
+        .p-sz { font-family: 'JetBrains Mono', monospace; font-size: .67rem; color: #2a2a2a; letter-spacing: .04em; }
+        .p-em { font-family: 'JetBrains Mono', monospace; font-size: .67rem; color: #6666cc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .p-em.none { color: #222; }
 
-        .export-bar { padding: 1.5rem 0; display: flex; justify-content: flex-end; gap: 1rem; border-top: 1px solid var(--border-dark); }
-        .btn-secondary { background: transparent; color: var(--grey60); border: 1px solid var(--border-dark); padding: .625rem 1.5rem; font-family: 'JetBrains Mono', monospace; font-size: .68rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; transition: all .15s; }
-        .btn-secondary:hover { background: #fff; color: var(--ink); border-color: #fff; }
+        /* EXPORT */
+        .export { padding: 1.5rem 0; display: flex; justify-content: flex-end; gap: 1rem; border-top: 1px solid var(--dark); }
+        .btn-s { background: transparent; color: var(--g60); border: 1px solid var(--dark); padding: .625rem 1.5rem; font-family: 'JetBrains Mono', monospace; font-size: .68rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; transition: all .15s; }
+        .btn-s:hover { background: #fff; color: var(--ink); border-color: #fff; }
     </style>
 </head>
 <body>
 
-<div id="cursor"></div>
-<div id="cursor-aura"></div>
+<div id="cur"></div>
+<div id="aura"></div>
 
 <nav>
-    <div class="wrap nav-inner">
+    <div class="W nav-i">
         <a class="logo" href="#">
-            <span class="logo-name">Pillet Grenié</span>
-            <span class="logo-badge">BUREAU.</span>
+            <span class="logo-n">Pillet Greni&#233;</span>
+            <span class="logo-b">BUREAU.</span>
         </a>
         <div class="nav-links">
             <a href="#">Campagnes</a>
@@ -216,240 +286,234 @@
     </div>
 </nav>
 
-<section class="hero-section">
-    <div class="wrap hero">
-        <p class="step-tag" id="heroTag">01 &mdash; Fiche Produit</p>
-        <h1>Trouve tes<br>prochains <em>clients.</em></h1>
+<section class="hero-s">
+    <div class="W">
+        <p class="mono-tag" id="heroTag">01 &mdash; Fiche Produit</p>
+        <h1>Trouve tes<br>prochains<br><em>clients.</em></h1>
         <p class="hero-sub">Description &rarr; ICP &rarr; Prospects qualifi&eacute;s</p>
     </div>
 </section>
 
-<div class="step-flow">
-    <div class="step-item active" id="step1"><span class="step-num">01</span><span class="step-label">Fiche produit</span></div>
-    <div class="step-item" id="step2"><span class="step-num">02</span><span class="step-label">ICP g&eacute;n&eacute;r&eacute;</span></div>
-    <div class="step-item" id="step3"><span class="step-num">03</span><span class="step-label">Prospects</span></div>
+<div class="steps">
+    <div class="si active" id="step1"><span class="sn">01</span><span class="sl">Fiche produit</span></div>
+    <div class="si" id="step2"><span class="sn">02</span><span class="sl">ICP g&eacute;n&eacute;r&eacute;</span></div>
+    <div class="si" id="step3"><span class="sn">03</span><span class="sl">Prospects</span></div>
 </div>
 
 <section id="formSection">
-    <div class="wrap-form">
-        <p class="section-label">Description du service</p>
+    <div class="WF">
+        <p class="form-eyebrow">01 &mdash; Service</p>
+        <h2 class="form-headline">D&eacute;cris ton service<span class="dot">.</span></h2>
+        <p class="form-desc">Plus ta description est pr&eacute;cise, meilleur sera l'ICP g&eacute;n&eacute;r&eacute;.</p>
 
-        <div class="field-group">
-            <label class="field-label" for="productDesc">Ton service</label>
+        <div class="fl">
             <textarea id="productDesc" rows="6"
-                placeholder="Décris ton offre : ce que vous faites, pour qui, comment, ce qui vous différencie..."></textarea>
+                placeholder="Ex : Agence d'int&eacute;gration &mdash; on con&ccedil;oit, construit et connecte des syst&egrave;mes digitaux. Sites, apps, automatisation, IA. Premi&egrave;re version en 14 jours, forfait mensuel tout inclus, deux fondateurs sur chaque projet."></textarea>
         </div>
 
-        <!-- Upload zone -->
-        <div class="upload-divider"><span>ou importer un fichier</span></div>
+        <div class="upload-sep"><span>ou importer un fichier</span></div>
 
-        <div class="upload-zone" id="uploadZone">
-            <div class="upload-left">
-                <span class="upload-icon">↑</span>
-                <div class="upload-texts">
+        <div class="upload-z" id="uploadZone">
+            <div class="upload-lft">
+                <span class="upload-ic">&uarr;</span>
+                <div>
                     <p class="upload-main">PDF ou Markdown</p>
-                    <p class="upload-hint">Le texte sera extrait et ajouté à la description</p>
+                    <p class="upload-hint">Le texte sera extrait et inject&eacute; dans la description</p>
                 </div>
             </div>
-            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Choisir un fichier</button>
-            <input type="file" id="fileInput" accept=".pdf,.md,.txt" style="display:none">
+            <button class="upload-action" onclick="document.getElementById('fi').click()">Choisir</button>
+            <input type="file" id="fi" accept=".pdf,.md,.txt" style="display:none">
         </div>
 
-        <div class="file-loaded" id="fileLoaded">
-            <div class="file-loaded-info">
-                <div class="file-loaded-dot"></div>
-                <span class="file-loaded-name" id="fileLoadedName"></span>
+        <div class="file-ok" id="fileOk">
+            <div class="file-ok-l">
+                <div class="file-dot"></div>
+                <span class="file-name" id="fileName"></span>
             </div>
-            <button class="file-clear" onclick="clearFile()">Retirer</button>
+            <button class="file-rm" onclick="clearFile()">Retirer</button>
         </div>
 
-        <div class="row-2">
-            <div class="field-group" style="margin-bottom:0">
-                <label class="field-label" for="country">Pays cible</label>
-                <select id="country">
-                    <option>France</option>
-                    <option>Belgique</option>
-                    <option>Suisse</option>
-                    <option>Luxembourg</option>
-                </select>
+        <p class="params-eyebrow">02 &mdash; Param&egrave;tres</p>
+
+        <div class="row2">
+            <div class="fl" style="margin-bottom:0">
+                <label class="fl-label" for="region">R&eacute;gion cible</label>
+                <div class="select-wrap">
+                    <select id="region">
+                        <option>Europe</option>
+                        <option>Moyen-Orient</option>
+                        <option>Asie-Pacifique</option>
+                        <option>US / Canada / Mexique</option>
+                        <option>Am&eacute;rique du Sud</option>
+                        <option>Afrique &amp; Oc&eacute;an Indien</option>
+                    </select>
+                    <span class="select-arrow">&#9660;</span>
+                </div>
             </div>
-            <div class="field-group" style="margin-bottom:0">
-                <label class="field-label">Prospects &mdash; <span id="sliderVal">15</span></label>
+            <div class="fl" style="margin-bottom:0">
+                <label class="fl-label">Prospects &mdash; <span id="sv">15</span></label>
                 <div class="slider-row">
-                    <input type="range" id="numProspects" min="5" max="25" value="15" step="5">
+                    <input type="range" id="numP" min="5" max="25" value="15" step="5">
                 </div>
             </div>
         </div>
 
-        <button class="btn-primary" onclick="generate()">G&eacute;n&eacute;rer ICP + Prospects &rarr;</button>
+        <button class="btn-p" onclick="generate()">G&eacute;n&eacute;rer ICP + Prospects &rarr;</button>
     </div>
 </section>
 
-<div id="errorBar" class="error-bar"></div>
+<div id="errBar" class="err"></div>
 
 <div id="loading">
-    <div class="wrap-form">
-        <div class="loading-steps">
-            <div class="loading-step" id="ls1"><div class="loading-dot"></div><span class="loading-text">Analyse de la fiche produit</span></div>
-            <div class="loading-step" id="ls2"><div class="loading-dot"></div><span class="loading-text">Génération de l'ICP</span></div>
-            <div class="loading-step" id="ls3"><div class="loading-dot"></div><span class="loading-text">Sourcing des prospects</span></div>
-            <div class="loading-step" id="ls4"><div class="loading-dot"></div><span class="loading-text">Enrichissement des données</span></div>
+    <div class="WF">
+        <div class="ls-wrap">
+            <div class="ls" id="ls1"><div class="ls-dot"></div><span class="ls-t">Analyse de la fiche produit</span></div>
+            <div class="ls" id="ls2"><div class="ls-dot"></div><span class="ls-t">G&#233;n&#233;ration de l'ICP</span></div>
+            <div class="ls" id="ls3"><div class="ls-dot"></div><span class="ls-t">Sourcing des prospects</span></div>
+            <div class="ls" id="ls4"><div class="ls-dot"></div><span class="ls-t">Enrichissement des donn&#233;es</span></div>
         </div>
     </div>
 </div>
 
 <section id="results">
-    <div class="wrap">
-        <div class="results-header">
-            <span class="results-tag">Résultats</span>
-            <span class="results-count"><em id="countDisplay">0</em> prospects</span>
+    <div class="W">
+        <div class="r-head">
+            <span class="r-tag">R&eacute;sultats</span>
+            <span class="r-count"><em id="rCount">0</em> prospects</span>
         </div>
     </div>
-    <div class="icp-grid">
-        <div class="icp-col"><p class="icp-col-label">Secteurs</p><div id="icpSectors"></div></div>
-        <div class="icp-col"><p class="icp-col-label">Postes</p><div id="icpTitles"></div></div>
-        <div class="icp-col"><p class="icp-col-label">Signaux d'achat</p><div id="icpSignals"></div></div>
+    <div class="icp">
+        <div class="icp-c"><p class="icp-l">Secteurs</p><div id="iSectors"></div></div>
+        <div class="icp-c"><p class="icp-l">Postes</p><div id="iTitles"></div></div>
+        <div class="icp-c"><p class="icp-l">Signaux d'achat</p><div id="iSignals"></div></div>
     </div>
-    <div class="angle-block" id="angleBlock" style="display:none">
-        <span class="angle-label">Angle</span>
-        <p class="angle-text" id="angleText"></p>
+    <div class="angle" id="angleBlock" style="display:none">
+        <span class="angle-l">Angle</span>
+        <p class="angle-t" id="angleText"></p>
     </div>
-    <div class="prospects-list">
-        <div class="prospect-header">
-            <span class="prospect-header-label">Contact</span>
-            <span class="prospect-header-label">Poste</span>
-            <span class="prospect-header-label">Taille</span>
-            <span class="prospect-header-label">Email</span>
+    <div class="p-list">
+        <div class="p-head">
+            <span class="p-hl">Contact</span>
+            <span class="p-hl">Poste</span>
+            <span class="p-hl">Taille</span>
+            <span class="p-hl">Email</span>
         </div>
-        <div id="prospectsList"></div>
+        <div id="pList"></div>
     </div>
-    <div class="wrap"><div class="export-bar">
-        <button class="btn-secondary" onclick="reset()">Nouvelle campagne</button>
-        <button class="btn-secondary" onclick="exportCSV()">↓&nbsp;Exporter CSV</button>
+    <div class="W"><div class="export">
+        <button class="btn-s" onclick="reset()">Nouvelle campagne</button>
+        <button class="btn-s" onclick="exportCSV()">&darr;&nbsp;CSV</button>
     </div></div>
 </section>
 
 <script>
-    // Curseur
-    const cur = document.getElementById('cursor');
-    const aura = document.getElementById('cursor-aura');
-    let ax = 0, ay = 0, mx = 0, my = 0;
-    document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; cur.style.left = mx+'px'; cur.style.top = my+'px'; });
-    (function tick(){ ax += (mx-ax)*.12; ay += (my-ay)*.12; aura.style.left=ax+'px'; aura.style.top=ay+'px'; requestAnimationFrame(tick); })();
-    document.querySelectorAll('button,a,input,select,textarea').forEach(el => {
-        el.addEventListener('mouseenter', ()=>cur.classList.add('hover'));
-        el.addEventListener('mouseleave', ()=>cur.classList.remove('hover'));
+    // Cursor
+    const C=document.getElementById('cur'), A=document.getElementById('aura');
+    let ax=0,ay=0,mx=0,my=0;
+    document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;C.style.left=mx+'px';C.style.top=my+'px';});
+    (function t(){ax+=(mx-ax)*.12;ay+=(my-ay)*.12;A.style.left=ax+'px';A.style.top=ay+'px';requestAnimationFrame(t);})();
+    document.querySelectorAll('button,a,input,select,textarea').forEach(el=>{
+        el.addEventListener('mouseenter',()=>C.classList.add('h'));
+        el.addEventListener('mouseleave',()=>C.classList.remove('h'));
     });
 
     // Slider
-    document.getElementById('numProspects').addEventListener('input', function(){ document.getElementById('sliderVal').textContent = this.value; });
+    document.getElementById('numP').addEventListener('input',function(){document.getElementById('sv').textContent=this.value;});
 
     // Drag & drop
-    const zone = document.getElementById('uploadZone');
-    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
-    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-    zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if(f) handleFile(f); });
-    document.getElementById('fileInput').addEventListener('change', function(){ if(this.files[0]) handleFile(this.files[0]); });
+    const uz=document.getElementById('uploadZone');
+    uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('dg');});
+    uz.addEventListener('dragleave',()=>uz.classList.remove('dg'));
+    uz.addEventListener('drop',e=>{e.preventDefault();uz.classList.remove('dg');if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);});
+    document.getElementById('fi').addEventListener('change',function(){if(this.files[0])handleFile(this.files[0]);});
 
-    async function handleFile(file) {
-        const ext = file.name.split('.').pop().toLowerCase();
-        if (ext === 'md' || ext === 'txt') {
-            const text = await file.text();
-            document.getElementById('productDesc').value = text;
-            showFileLoaded(file.name);
-        } else if (ext === 'pdf') {
-            showFileLoaded(file.name + '  (extraction en cours...)');
-            const fd = new FormData();
-            fd.append('file', file);
-            try {
-                const res = await fetch('/api/parse-document', { method: 'POST', body: fd });
-                if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
-                const data = await res.json();
-                document.getElementById('productDesc').value = data.text;
-                showFileLoaded(file.name);
-            } catch(e) { clearFile(); showError('Erreur PDF : ' + e.message); }
-        } else {
-            showError('Format non supporté. Utilise un PDF ou un fichier .md');
-        }
+    async function handleFile(f){
+        const ext=f.name.split('.').pop().toLowerCase();
+        if(ext==='md'||ext==='txt'){
+            document.getElementById('productDesc').value=await f.text();
+            showFile(f.name);
+        } else if(ext==='pdf'){
+            showFile(f.name+' (extraction...)');
+            const fd=new FormData(); fd.append('file',f);
+            try{
+                const r=await fetch('/api/parse-document',{method:'POST',body:fd});
+                if(!r.ok){const e=await r.json();throw new Error(e.detail);}
+                document.getElementById('productDesc').value=(await r.json()).text;
+                showFile(f.name);
+            }catch(e){clearFile();showErr('Erreur PDF : '+e.message);}
+        } else { showErr('Format non support&#233;. PDF ou .md uniquement.'); }
     }
-
-    function showFileLoaded(name) {
-        document.getElementById('uploadZone').style.display = 'none';
-        const fl = document.getElementById('fileLoaded');
-        fl.style.display = 'flex';
-        document.getElementById('fileLoadedName').textContent = name;
+    function showFile(n){
+        uz.style.display='none';
+        const fo=document.getElementById('fileOk'); fo.style.display='flex';
+        document.getElementById('fileName').textContent=n;
     }
-
-    function clearFile() {
-        document.getElementById('fileInput').value = '';
-        document.getElementById('uploadZone').style.display = 'flex';
-        document.getElementById('fileLoaded').style.display = 'none';
-        document.getElementById('productDesc').value = '';
+    function clearFile(){
+        document.getElementById('fi').value='';
+        uz.style.display='flex';
+        document.getElementById('fileOk').style.display='none';
+        document.getElementById('productDesc').value='';
     }
 
     // Steps
-    function setStep(n) {
-        const tags = ['01 — Fiche Produit','02 — ICP','03 — Prospects'];
-        document.getElementById('heroTag').textContent = tags[n-1];
-        [1,2,3].forEach(i => {
-            const el = document.getElementById('step'+i);
+    function setStep(n){
+        const tags=['01 &mdash; Fiche Produit','02 &mdash; ICP','03 &mdash; Prospects'];
+        document.getElementById('heroTag').innerHTML=tags[n-1];
+        [1,2,3].forEach(i=>{
+            const el=document.getElementById('step'+i);
             el.classList.remove('active','done');
-            if(i===n) el.classList.add('active');
-            else if(i<n) el.classList.add('done');
+            if(i===n)el.classList.add('active'); else if(i<n)el.classList.add('done');
         });
     }
 
     // Loading
-    let ltimer;
-    function startLoading() {
-        ['ls1','ls2','ls3','ls4'].forEach(id => document.getElementById(id).classList.remove('active','done'));
-        let c = 0;
-        document.getElementById('ls1').classList.add('active');
-        ltimer = setInterval(() => {
-            if(c<3){ document.getElementById('ls'+(c+1)).classList.replace('active','done'); c++; document.getElementById('ls'+(c+1)).classList.add('active'); }
-        }, 2800);
+    let lt;
+    function startLoad(){
+        ['ls1','ls2','ls3','ls4'].forEach(id=>document.getElementById(id).classList.remove('a','d'));
+        let c=0; document.getElementById('ls1').classList.add('a');
+        lt=setInterval(()=>{ if(c<3){document.getElementById('ls'+(c+1)).classList.replace('a','d');c++;document.getElementById('ls'+(c+1)).classList.add('a');} },2800);
     }
-    function stopLoading() { clearInterval(ltimer); }
+    function stopLoad(){clearInterval(lt);}
 
     // Generate
-    let currentProspects = [];
-    async function generate() {
-        const desc = document.getElementById('productDesc').value.trim();
-        if(!desc){ showError('Décris ton service avant de lancer.'); return; }
-        hideError();
-        document.getElementById('formSection').style.display = 'none';
-        document.getElementById('results').style.display = 'none';
-        document.getElementById('loading').style.display = 'block';
-        setStep(2); startLoading();
-        try {
-            const res = await fetch('/api/generate', {
-                method: 'POST', headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({ product_description: desc, country: document.getElementById('country').value, num_results: parseInt(document.getElementById('numProspects').value) })
+    let prsp=[];
+    async function generate(){
+        const desc=document.getElementById('productDesc').value.trim();
+        if(!desc){showErr('D&#233;cris ton service avant de lancer.');return;}
+        hideErr();
+        document.getElementById('formSection').style.display='none';
+        document.getElementById('results').style.display='none';
+        document.getElementById('loading').style.display='block';
+        setStep(2); startLoad();
+        try{
+            const r=await fetch('/api/generate',{
+                method:'POST',headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({product_description:desc,country:document.getElementById('region').value,num_results:parseInt(document.getElementById('numP').value)})
             });
-            stopLoading();
-            if(!res.ok){ const e=await res.json(); throw new Error(e.detail||'Erreur serveur'); }
-            renderResults(await res.json());
-        } catch(e) {
-            stopLoading();
+            stopLoad();
+            if(!r.ok){const e=await r.json();throw new Error(e.detail||'Erreur serveur');}
+            render(await r.json());
+        }catch(e){
+            stopLoad();
             document.getElementById('loading').style.display='none';
             document.getElementById('formSection').style.display='block';
-            setStep(1); showError('Erreur : '+e.message);
+            setStep(1); showErr('Erreur : '+e.message);
         }
     }
 
-    function renderResults({icp, prospects}) {
-        currentProspects = prospects;
-        document.getElementById('icpSectors').innerHTML = (icp.sectors||[]).map(s=>`<span class="icp-tag">${s}</span>`).join('');
-        document.getElementById('icpTitles').innerHTML = (icp.job_titles||[]).map(t=>`<span class="icp-tag">${t}</span>`).join('');
-        document.getElementById('icpSignals').innerHTML = (icp.intent_signals||[]).map(s=>`<span class="icp-tag">${s}</span>`).join('');
-        if(icp.outreach_angle){ document.getElementById('angleText').textContent=icp.outreach_angle; document.getElementById('angleBlock').style.display='flex'; }
-        document.getElementById('countDisplay').textContent = prospects.length;
-        document.getElementById('prospectsList').innerHTML = prospects.map(p=>`
-            <div class="prospect-row">
-                <div><div class="p-name">${p.Nom||'—'}</div><div class="p-company">${p.Entreprise||''}${p.Ville?' · '+p.Ville:''}</div></div>
-                <div class="p-title">${p.Poste||'—'}</div>
-                <div class="p-size">${p.Taille||'—'}</div>
-                <div class="p-email ${!p.Email?'none':''}">${p.Email||'Non disponible'}</div>
+    function render({icp,prospects}){
+        prsp=prospects;
+        document.getElementById('iSectors').innerHTML=(icp.sectors||[]).map(s=>`<span class="icp-t">${s}</span>`).join('');
+        document.getElementById('iTitles').innerHTML=(icp.job_titles||[]).map(t=>`<span class="icp-t">${t}</span>`).join('');
+        document.getElementById('iSignals').innerHTML=(icp.intent_signals||[]).map(s=>`<span class="icp-t">${s}</span>`).join('');
+        if(icp.outreach_angle){document.getElementById('angleText').textContent=icp.outreach_angle;document.getElementById('angleBlock').style.display='flex';}
+        document.getElementById('rCount').textContent=prospects.length;
+        document.getElementById('pList').innerHTML=prospects.map(p=>`
+            <div class="p-row">
+                <div><div class="p-n">${p.Nom||'&#8212;'}</div><div class="p-co">${p.Entreprise||''}${p.Ville?' &middot; '+p.Ville:''}</div></div>
+                <div class="p-ti">${p.Poste||'&#8212;'}</div>
+                <div class="p-sz">${p.Taille||'&#8212;'}</div>
+                <div class="p-em ${!p.Email?'none':''}">${p.Email||'Non disponible'}</div>
             </div>`).join('');
         document.getElementById('loading').style.display='none';
         document.getElementById('results').style.display='block';
@@ -457,25 +521,25 @@
         document.getElementById('results').scrollIntoView({behavior:'smooth'});
     }
 
-    function exportCSV() {
-        if(!currentProspects.length) return;
-        const h=Object.keys(currentProspects[0]);
-        const rows=currentProspects.map(p=>h.map(k=>`"${String(p[k]||'').replace(/"/g,'""')}"`).join(','));
+    function exportCSV(){
+        if(!prsp.length)return;
+        const h=Object.keys(prsp[0]);
+        const rows=prsp.map(p=>h.map(k=>`"${String(p[k]||'').replace(/"/g,'""')}"`).join(','));
         const blob=new Blob(['﻿'+[h.join(','),...rows].join('\n')],{type:'text/csv;charset=utf-8;'});
-        const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`prospects_${new Date().toISOString().slice(0,10)}.csv`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`prospects_${new Date().toISOString().slice(0,10)}.csv`;
+        document.body.appendChild(a);a.click();document.body.removeChild(a);
     }
 
-    function reset() {
+    function reset(){
         document.getElementById('results').style.display='none';
         document.getElementById('formSection').style.display='block';
         document.getElementById('productDesc').value='';
-        clearFile(); currentProspects=[]; setStep(1);
+        clearFile();prsp=[];setStep(1);
         window.scrollTo({top:0,behavior:'smooth'});
     }
 
-    function showError(msg){ const b=document.getElementById('errorBar'); b.textContent=msg; b.style.display='block'; }
-    function hideError(){ document.getElementById('errorBar').style.display='none'; }
+    function showErr(m){const b=document.getElementById('errBar');b.textContent=m;b.style.display='block';}
+    function hideErr(){document.getElementById('errBar').style.display='none';}
 </script>
 </body>
 </html>
