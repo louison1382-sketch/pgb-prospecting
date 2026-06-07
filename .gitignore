@@ -1,0 +1,18 @@
+# Variables d'environnement — ne jamais committer
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.Python
+
+# Streamlit
+.streamlit/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
