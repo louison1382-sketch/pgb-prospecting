@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BUREAU. Prospecting</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #F0F0F0;
+            color: #000;
+            min-height: 100vh;
+        }
+
+        /* NAV */
+        nav {
+            background: #000;
+            height: 56px;
+            padding: 0 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo { color: #D0F028; font-size: 13px; font-weight: 800; letter-spacing: 0.1em; }
+        .nav-links { display: flex; gap: 2rem; }
+        .nav-links a { color: #404040; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; text-decoration: none; transition: color 0.15s; }
+        .nav-links a:hover { color: #787878; }
+
+        /* HERO */
+        .hero { background: #000; padding: 4rem 2.5rem 2rem; }
+        .step-tag { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #404040; margin-bottom: 1.25rem; font-weight: 600; }
+        .hero h1 { font-size: clamp(2.4rem, 5vw, 3.8rem); font-weight: 900; color: #fff; line-height: 1.0; letter-spacing: -0.04em; }
+        .hero h1 em { color: #D0F028; font-style: normal; }
+        .hero-sub { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #404040; margin-top: 1.5rem; font-weight: 500; }
+
+        /* STEP FLOW */
+        .step-flow { display: grid; grid-template-columns: 1fr 1fr 1fr; background: #000; border-top: 1px solid #1a1a1a; }
+        .step-item { padding: 0.875rem 2.5rem; display: flex; align-items: center; gap: 0.75rem; border-right: 1px solid #1a1a1a; }
+        .step-item:last-child { border-right: none; }
+        .step-num { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: #2a2a2a; transition: color 0.3s; }
+        .step-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #2a2a2a; transition: color 0.3s; }
+        .step-item.active .step-num { color: #D0F028; }
+        .step-item.active .step-label { color: #fff; }
+        .step-item.done .step-num { color: #333; }
+        .step-item.done .step-label { color: #333; }
+
+        /* FORM */
+        .form-section { padding: 3rem 2.5rem; max-width: 760px; }
+        .section-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #787878; margin-bottom: 2rem; font-weight: 600; }
+        .field-group { margin-bottom: 1.5rem; }
+        .field-label { display: block; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: #404040; font-weight: 600; margin-bottom: 0.5rem; }
+
+        textarea {
+            width: 100%; background: #fff; border: 1px solid #C8C8C8; border-radius: 0;
+            padding: 1rem 1.25rem; font-size: 0.9rem; font-family: 'Inter', sans-serif;
+            color: #000; line-height: 1.65; resize: vertical; outline: none; transition: border-color 0.15s;
+        }
+        textarea:focus { border-color: #000; }
+        textarea::placeholder { color: #B0B0B0; }
+
+        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+
+        select {
+            width: 100%; background: #fff; border: 1px solid #C8C8C8; border-radius: 0;
+            padding: 0.75rem 1rem; font-size: 0.875rem; font-family: 'Inter', sans-serif;
+            color: #000; appearance: none; outline: none; cursor: pointer; transition: border-color 0.15s;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23787878' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 1rem center;
+        }
+        select:focus { border-color: #000; }
+
+        .slider-row { display: flex; align-items: center; gap: 1rem; padding-top: 0.5rem; }
+        input[type="range"] { flex: 1; -webkit-appearance: none; height: 2px; background: #C8C8C8; outline: none; cursor: pointer; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: #000; cursor: pointer; border-radius: 0; }
+        input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; background: #000; cursor: pointer; border-radius: 0; border: none; }
+        .slider-val { font-size: 0.875rem; font-weight: 700; color: #000; min-width: 20px; text-align: right; }
+
+        .btn-primary {
+            background: #000; color: #D0F028; border: none; width: 100%;
+            padding: 1.1rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.16em;
+            text-transform: uppercase; cursor: pointer; font-family: 'Inter', sans-serif;
+            display: flex; align-items: center; justify-content: center; gap: 0.75rem;
+            transition: background 0.15s;
+        }
+        .btn-primary:hover { background: #1a1a1a; }
+        .btn-primary:disabled { background: #333; color: #666; cursor: not-allowed; }
+
+        /* LOADING */
+        #loading { display: none; background: #000; padding: 3rem 2.5rem; min-height: 200px; }
+        .loading-steps { display: flex; flex-direction: column; gap: 1.25rem; }
+        .loading-step { display: flex; align-items: center; gap: 1rem; opacity: 0.2; transition: opacity 0.4s; }
+        .loading-step.active { opacity: 1; }
+        .loading-step.done { opacity: 0.35; }
+        .loading-dot { width: 5px; height: 5px; background: #D0F028; flex-shrink: 0; }
+        .loading-step.active .loading-dot { animation: blink 0.9s ease-in-out infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+        .loading-text { font-size: 0.85rem; color: #787878; letter-spacing: 0.04em; }
+        .loading-step.active .loading-text { color: #fff; }
+
+        /* ERROR */
+        .error-bar { display: none; background: #1a0000; border-left: 3px solid #cc2200; padding: 1rem 2.5rem; font-size: 0.78rem; color: #ff7060; letter-spacing: 0.03em; }
+
+        /* RESULTS */
+        #results { display: none; background: #000; }
+
+        .results-header {
+            padding: 2.5rem 2.5rem 1.5rem;
+            display: flex; align-items: baseline; justify-content: space-between;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .results-tag { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #404040; font-weight: 600; }
+        .results-count { font-size: 2.2rem; font-weight: 900; color: #fff; letter-spacing: -0.03em; }
+        .results-count em { color: #D0F028; font-style: normal; }
+
+        /* ICP */
+        .icp-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid #1a1a1a; }
+        .icp-col { padding: 1.5rem 2.5rem; border-right: 1px solid #1a1a1a; }
+        .icp-col:last-child { border-right: none; }
+        .icp-col-label { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: #404040; font-weight: 700; margin-bottom: 0.875rem; }
+        .icp-tag { display: block; font-size: 0.73rem; color: #787878; padding: 0.3rem 0; border-bottom: 1px solid #111; line-height: 1.45; }
+        .icp-tag:last-child { border-bottom: none; }
+
+        /* ANGLE */
+        .angle-block { background: #D0F028; padding: 1.25rem 2.5rem; display: flex; align-items: flex-start; gap: 1.25rem; }
+        .angle-label { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: #404040; font-weight: 700; white-space: nowrap; padding-top: 0.15rem; }
+        .angle-text { font-size: 0.82rem; color: #000; font-weight: 500; line-height: 1.55; }
+
+        /* PROSPECTS TABLE */
+        .prospects-list { border-top: 1px solid #1a1a1a; }
+        .prospect-header { display: grid; grid-template-columns: 2.5fr 2fr 1fr 2.2fr; gap: 1rem; padding: 0.625rem 2.5rem; border-bottom: 1px solid #1a1a1a; }
+        .prospect-header-label { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: #2a2a2a; font-weight: 700; }
+        .prospect-row { display: grid; grid-template-columns: 2.5fr 2fr 1fr 2.2fr; gap: 1rem; padding: 0.9rem 2.5rem; border-bottom: 1px solid #111; align-items: center; transition: background 0.1s; }
+        .prospect-row:hover { background: #080808; }
+        .prospect-row:last-child { border-bottom: none; }
+        .p-name { font-size: 0.82rem; font-weight: 600; color: #fff; }
+        .p-company { font-size: 0.71rem; color: #404040; margin-top: 2px; }
+        .p-title { font-size: 0.75rem; color: #787878; }
+        .p-size { font-size: 0.71rem; color: #404040; letter-spacing: 0.04em; }
+        .p-email { font-size: 0.71rem; color: #8888ff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .p-email.none { color: #2a2a2a; }
+
+        /* EXPORT BAR */
+        .export-bar { padding: 1.25rem 2.5rem; display: flex; justify-content: flex-end; gap: 1rem; border-top: 1px solid #1a1a1a; }
+        .btn-secondary { background: transparent; color: #787878; border: 1px solid #222; padding: 0.6rem 1.5rem; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.15s; }
+        .btn-secondary:hover { background: #fff; color: #000; border-color: #fff; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <span class="logo">BUREAU.</span>
+    <div class="nav-links">
+        <a href="#">Campagnes</a>
+        <a href="#">Historique</a>
+    </div>
+</nav>
+
+<div class="hero">
+    <p class="step-tag" id="heroTag">01 — Fiche Produit</p>
+    <h1>Trouve tes<br>prochains <em>clients.</em></h1>
+    <p class="hero-sub">Description &rarr; ICP &rarr; Prospects qualifi&eacute;s</p>
+</div>
+
+<div class="step-flow">
+    <div class="step-item active" id="step1">
+        <span class="step-num">01</span>
+        <span class="step-label">Fiche produit</span>
+    </div>
+    <div class="step-item" id="step2">
+        <span class="step-num">02</span>
+        <span class="step-label">ICP g&eacute;n&eacute;r&eacute;</span>
+    </div>
+    <div class="step-item" id="step3">
+        <span class="step-num">03</span>
+        <span class="step-label">Prospects</span>
+    </div>
+</div>
+
+<div id="formSection">
+    <div class="form-section">
+        <p class="section-label">Description du service</p>
+
+        <div class="field-group">
+            <label class="field-label" for="productDesc">Ton service</label>
+            <textarea id="productDesc" rows="5"
+                placeholder="Ex : Agence d'int&eacute;gration — on con&ccedil;oit, construit et connecte des syst&egrave;mes digitaux. Sites, apps, automatisation, IA. Premi&egrave;re version livr&eacute;e en 14 jours, forfait mensuel tout inclus."></textarea>
+        </div>
+
+        <div class="row-2">
+            <div class="field-group" style="margin-bottom:0">
+                <label class="field-label" for="country">Pays cible</label>
+                <select id="country">
+                    <option value="France">France</option>
+                    <option value="Belgique">Belgique</option>
+                    <option value="Suisse">Suisse</option>
+                    <option value="Luxembourg">Luxembourg</option>
+                </select>
+            </div>
+            <div class="field-group" style="margin-bottom:0">
+                <label class="field-label">Nombre de prospects &mdash; <span id="sliderVal">15</span></label>
+                <div class="slider-row">
+                    <input type="range" id="numProspects" min="5" max="25" value="15" step="5">
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-primary" id="submitBtn" onclick="generate()">
+            G&eacute;n&eacute;rer ICP + Prospects &rarr;
+        </button>
+    </div>
+</div>
+
+<div id="errorBar" class="error-bar"></div>
+
+<div id="loading">
+    <div class="form-section">
+        <div class="loading-steps">
+            <div class="loading-step" id="ls1"><div class="loading-dot"></div><span class="loading-text">Analyse de la fiche produit</span></div>
+            <div class="loading-step" id="ls2"><div class="loading-dot"></div><span class="loading-text">G&eacute;n&eacute;ration de l'ICP</span></div>
+            <div class="loading-step" id="ls3"><div class="loading-dot"></div><span class="loading-text">Sourcing des prospects</span></div>
+            <div class="loading-step" id="ls4"><div class="loading-dot"></div><span class="loading-text">Enrichissement des donn&eacute;es</span></div>
+        </div>
+    </div>
+</div>
+
+<div id="results">
+    <div class="results-header">
+        <span class="results-tag">R&eacute;sultats</span>
+        <span class="results-count"><em id="countDisplay">0</em> prospects</span>
+    </div>
+    <div class="icp-grid">
+        <div class="icp-col"><p class="icp-col-label">Secteurs</p><div id="icpSectors"></div></div>
+        <div class="icp-col"><p class="icp-col-label">Postes</p><div id="icpTitles"></div></div>
+        <div class="icp-col"><p class="icp-col-label">Signaux d'achat</p><div id="icpSignals"></div></div>
+    </div>
+    <div class="angle-block" id="angleBlock" style="display:none">
+        <span class="angle-label">Angle</span>
+        <p class="angle-text" id="angleText"></p>
+    </div>
+    <div class="prospects-list">
+        <div class="prospect-header">
+            <span class="prospect-header-label">Contact</span>
+            <span class="prospect-header-label">Poste</span>
+            <span class="prospect-header-label">Taille</span>
+            <span class="prospect-header-label">Email</span>
+        </div>
+        <div id="prospectsList"></div>
+    </div>
+    <div class="export-bar">
+        <button class="btn-secondary" onclick="reset()">Nouvelle campagne</button>
+        <button class="btn-secondary" onclick="exportCSV()">&#8595; Exporter CSV</button>
+    </div>
+</div>
+
+<script>
+    let currentProspects = [];
+
+    document.getElementById('numProspects').addEventListener('input', function() {
+        document.getElementById('sliderVal').textContent = this.value;
+    });
+
+    function setStep(n) {
+        const tags = ['01 — Fiche Produit', '02 — ICP', '03 — Prospects'];
+        document.getElementById('heroTag').textContent = tags[n - 1];
+        [1, 2, 3].forEach(i => {
+            const el = document.getElementById('step' + i);
+            el.classList.remove('active', 'done');
+            if (i === n) el.classList.add('active');
+            else if (i < n) el.classList.add('done');
+        });
+    }
+
+    let loadingTimer;
+    function startLoading() {
+        const steps = ['ls1', 'ls2', 'ls3', 'ls4'];
+        steps.forEach(id => document.getElementById(id).classList.remove('active', 'done'));
+        let current = 0;
+        document.getElementById(steps[0]).classList.add('active');
+        loadingTimer = setInterval(() => {
+            if (current < steps.length - 1) {
+                document.getElementById(steps[current]).classList.replace('active', 'done');
+                current++;
+                document.getElementById(steps[current]).classList.add('active');
+            }
+        }, 2800);
+    }
+
+    function stopLoading() { clearInterval(loadingTimer); }
+
+    async function generate() {
+        const desc = document.getElementById('productDesc').value.trim();
+        if (!desc) { showError('Décris ton service avant de lancer la recherche.'); return; }
+        hideError();
+        document.getElementById('formSection').style.display = 'none';
+        document.getElementById('results').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+        setStep(2);
+        startLoading();
+        try {
+            const res = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product_description: desc,
+                    country: document.getElementById('country').value,
+                    num_results: parseInt(document.getElementById('numProspects').value)
+                })
+            });
+            stopLoading();
+            if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Erreur serveur'); }
+            const data = await res.json();
+            renderResults(data.icp, data.prospects);
+        } catch (e) {
+            stopLoading();
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('formSection').style.display = 'block';
+            setStep(1);
+            showError('Erreur : ' + e.message);
+        }
+    }
+
+    function renderResults(icp, prospects) {
+        currentProspects = prospects;
+        document.getElementById('icpSectors').innerHTML = (icp.sectors || []).map(s => `<span class="icp-tag">${s}</span>`).join('');
+        document.getElementById('icpTitles').innerHTML = (icp.job_titles || []).map(t => `<span class="icp-tag">${t}</span>`).join('');
+        document.getElementById('icpSignals').innerHTML = (icp.intent_signals || []).map(s => `<span class="icp-tag">${s}</span>`).join('');
+        if (icp.outreach_angle) {
+            document.getElementById('angleText').textContent = icp.outreach_angle;
+            document.getElementById('angleBlock').style.display = 'flex';
+        }
+        document.getElementById('countDisplay').textContent = prospects.length;
+        document.getElementById('prospectsList').innerHTML = prospects.map(p => `
+            <div class="prospect-row">
+                <div><div class="p-name">${p.Nom || '—'}</div><div class="p-company">${p.Entreprise || ''}${p.Ville ? ' &middot; ' + p.Ville : ''}</div></div>
+                <div class="p-title">${p.Poste || '—'}</div>
+                <div class="p-size">${p.Taille || '—'}</div>
+                <div class="p-email ${!p.Email ? 'none' : ''}">${p.Email || 'Non disponible'}</div>
+            </div>`).join('');
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('results').style.display = 'block';
+        setStep(3);
+        document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function exportCSV() {
+        if (!currentProspects.length) return;
+        const headers = Object.keys(currentProspects[0]);
+        const rows = currentProspects.map(p => headers.map(h => `"${String(p[h] || '').replace(/"/g, '""')}"`).join(','));
+        const csv = '﻿' + [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `prospects_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function reset() {
+        document.getElementById('results').style.display = 'none';
+        document.getElementById('formSection').style.display = 'block';
+        document.getElementById('productDesc').value = '';
+        currentProspects = [];
+        setStep(1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function showError(msg) {
+        const bar = document.getElementById('errorBar');
+        bar.textContent = msg;
+        bar.style.display = 'block';
+    }
+
+    function hideError() { document.getElementById('errorBar').style.display = 'none'; }
+</script>
+
+</body>
+</html>
