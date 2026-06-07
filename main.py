@@ -1,7 +1,7 @@
 # main.py — Serveur FastAPI PGB Prospecting
 
-import os
-from fastapi import FastAPI, HTTPException
+import os, io
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -28,6 +28,35 @@ class GenerateRequest(BaseModel):
 @app.get("/")
 async def root():
     return FileResponse("index.html")
+
+
+@app.post("/api/parse-document")
+async def parse_document(file: UploadFile = File(...)):
+    filename = file.filename or ""
+    content = await file.read()
+
+    if filename.endswith(".md") or filename.endswith(".txt"):
+        try:
+            text = content.decode("utf-8")
+        except Exception:
+            raise HTTPException(status_code=400, detail="Impossible de lire le fichier texte.")
+
+    elif filename.endswith(".pdf"):
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(content))
+            pages = [page.extract_text() or "" for page in reader.pages]
+            text = "\n\n".join(p for p in pages if p.strip())
+            if not text.strip():
+                raise HTTPException(status_code=422, detail="PDF vide ou non lisible (scanné ?).")
+        except ImportError:
+            raise HTTPException(status_code=500, detail="pypdf non installé.")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Erreur lecture PDF : {str(e)}")
+    else:
+        raise HTTPException(status_code=415, detail="Format non supporté. Utilise un PDF ou un fichier .md")
+
+    return {"text": text.strip()}
 
 
 @app.post("/api/generate")
