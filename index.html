@@ -157,7 +157,7 @@
 
         .err { display: none; background: #0d0000; border-left: 2px solid #c22; padding: .875rem 3rem; font-family: 'JetBrains Mono', monospace; font-size: .72rem; color: #f65; letter-spacing: .04em; }
 
-        /* ═══════════════ RESULTS V2 ═══════════════ */
+        /* RESULTS */
         #results { display: none; background: var(--ink); }
 
         .r-head {
@@ -170,7 +170,6 @@
         .r-count { font-family: 'Inter', sans-serif; font-optical-sizing: auto; font-feature-settings: 'cv01' 1, 'cv02' 1; font-size: clamp(2rem, 4vw, 4rem); font-weight: 800; letter-spacing: -.04em; color: #fff; }
         .r-count em { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; color: var(--lime); }
 
-        /* ICP — 2 colonnes */
         .icp-block {
             display: grid; grid-template-columns: 1fr 1fr;
             border: 1px solid #1e1e1e; margin: 2rem 0 2px;
@@ -193,7 +192,6 @@
         .c-attr-k { font-size: 9px; color: #333; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: .08em; }
         .c-attr-v { font-size: .75rem; font-weight: 600; color: #ccc; }
 
-        /* Proof stats */
         .proof-stat { display: flex; gap: 1rem; padding: 1.125rem 0; border-bottom: 1px solid #111; align-items: flex-start; }
         .proof-stat:first-of-type { border-top: 1px solid #111; }
         .proof-num { font-size: 1.6rem; font-weight: 800; color: var(--lime); letter-spacing: -.03em; line-height: 1; min-width: 60px; flex-shrink: 0; }
@@ -204,7 +202,6 @@
         .proof-reasoning-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--lime); margin-bottom: 6px; }
         .proof-reasoning-text { font-size: .75rem; line-height: 1.6; color: #555; }
 
-        /* Prospects table */
         .prospects-wrap { border: 1px solid #1e1e1e; background: #0a0a0a; }
         .p2-header { padding: 1.25rem 1.75rem; border-bottom: 1px solid #111; display: flex; align-items: center; justify-content: space-between; }
         .p2-header-left { display: flex; flex-direction: column; gap: 2px; }
@@ -255,7 +252,7 @@
         .btn-s.lime { border-color: rgba(212,240,42,.3); color: var(--lime); }
         .btn-s.lime:hover { background: var(--lime); color: var(--ink); border-color: var(--lime); }
 
-        /* ═══════════════ CAMPAIGNS + HISTORY ═══════════════ */
+        /* CAMPAIGNS + HISTORY */
         #page-campaigns, #page-history { display: none; background: var(--ink); min-height: calc(100vh - 60px); }
 
         .pg-head { border-bottom: 1px solid #111; padding: 3rem 0 2rem; }
@@ -265,7 +262,6 @@
         .pg-sub { font-family: 'JetBrains Mono', monospace; font-size: .68rem; color: #333; letter-spacing: .04em; }
         .pg-body { padding: 2rem 0 6rem; }
 
-        /* Campaign cards */
         .campaign-list { display: flex; flex-direction: column; gap: 2px; }
         .campaign-card { border: 1px solid #1a1a1a; background: #080808; }
         .campaign-card.open { border-color: rgba(212,240,42,.2); }
@@ -282,7 +278,6 @@
         .campaign-detail { display: none; border-top: 1px solid #111; }
         .campaign-card.open .campaign-detail { display: block; }
 
-        /* Status pills */
         .sp { display: inline-flex; align-items: center; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; padding: 3px 9px; letter-spacing: .06em; text-transform: uppercase; border-radius: 2px; cursor: pointer; border: 1px solid transparent; transition: all .15s; }
         .sp::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
         .sp-wait   { color: #333; background: rgba(51,51,51,.12); border-color: rgba(51,51,51,.25); }
@@ -291,7 +286,6 @@
         .sp-signed { color: #4ADE80; background: rgba(74,222,128,.07); border-color: rgba(74,222,128,.2); }
         .sp-lost   { color: #FF6B6B; background: rgba(255,107,107,.07); border-color: rgba(255,107,107,.2); }
 
-        /* Detail table */
         .dt { width: 100%; border-collapse: collapse; }
         .dt thead tr { border-bottom: 1px solid #0d0d0d; }
         .dt th { padding: .75rem 1rem; text-align: left; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #222; background: #050505; }
@@ -307,7 +301,6 @@
         .dt-co { color: #252525; font-size: .65rem; font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
         .dt-date { font-family: 'JetBrains Mono', monospace; font-size: .65rem; color: #252525; }
 
-        /* History cards */
         .history-list { display: flex; flex-direction: column; gap: 2px; }
         .hcard { border: 1px solid #1a1a1a; background: #080808; }
         .hcard.open { border-color: rgba(212,240,42,.2); }
@@ -339,11 +332,61 @@
         .scraped-score.hi { color: var(--lime); }
         .scraped-score.md { color: #FFD166; }
 
-        /* Empty state */
         .empty-state { padding: 5rem 0; text-align: center; }
         .empty-state-icon { font-size: 2rem; margin-bottom: 1.25rem; opacity: .2; }
         .empty-state-title { font-size: 1rem; font-weight: 700; color: #333; margin-bottom: .5rem; letter-spacing: -.01em; }
         .empty-state-sub { font-size: .75rem; color: #252525; font-family: 'JetBrains Mono', monospace; }
+
+        /* EMAIL MODAL */
+        #emailModal {
+            display: none; position: fixed; inset: 0; z-index: 1000;
+            background: rgba(0,0,0,.88);
+            align-items: center; justify-content: center;
+            backdrop-filter: blur(6px);
+        }
+        #emailModal.open { display: flex; }
+        .em-box {
+            background: #0a0a0a; border: 1px solid rgba(212,240,42,.2);
+            width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto;
+            margin: 1rem;
+        }
+        .em-header {
+            padding: 1.5rem 1.75rem 1rem; border-bottom: 1px solid #111;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .em-title {
+            font-family: 'JetBrains Mono', monospace; font-size: 10px;
+            font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+            color: var(--lime);
+        }
+        .em-close { background: none; border: none; color: #333; font-size: 1.2rem; line-height: 1; transition: color .15s; }
+        .em-close:hover { color: var(--lime); }
+        .em-body { padding: 1.5rem 1.75rem; display: flex; flex-direction: column; gap: 1.25rem; }
+        .em-field { display: flex; flex-direction: column; gap: .5rem; }
+        .em-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #333; }
+        .em-input {
+            background: #111; border: 1px solid #1e1e1e;
+            padding: .75rem 1rem; font-family: 'Inter', sans-serif;
+            font-size: .875rem; font-weight: 300; color: #fff;
+            outline: none; border-radius: 0; transition: border-color .15s; width: 100%;
+        }
+        .em-input:focus { border-color: rgba(212,240,42,.4); }
+        .em-textarea { min-height: 260px; resize: vertical; line-height: 1.75; }
+        .em-footer {
+            padding: 1rem 1.75rem 1.5rem; border-top: 1px solid #111;
+            display: flex; gap: .75rem; justify-content: flex-end; align-items: center;
+        }
+        .em-status { font-family: 'JetBrains Mono', monospace; font-size: .65rem; color: #333; flex: 1; letter-spacing: .06em; }
+        .em-status.ok { color: var(--lime); }
+        .em-status.err { color: #f65; }
+        .btn-email {
+            background: transparent; border: 1px solid rgba(212,240,42,.25);
+            color: var(--lime); padding: .35rem .875rem;
+            font-family: 'JetBrains Mono', monospace; font-size: .65rem;
+            font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+            transition: all .15s; white-space: nowrap;
+        }
+        .btn-email:hover { background: var(--lime); color: var(--ink); border-color: var(--lime); }
 
         @media (max-width: 860px) {
             .form-grid { grid-template-columns: 1fr; }
@@ -399,7 +442,7 @@
                 <h2 class="form-headline">D&eacute;cris ton<br>service<span class="dot">.</span></h2>
                 <p class="form-desc">Plus ta description est pr&eacute;cise, meilleur sera l&#8217;ICP g&eacute;n&eacute;r&eacute;. Contexte, offre, client id&eacute;al &mdash; tout compte.</p>
                 <div class="fl">
-                    <textarea id="productDesc" rows="7" placeholder="Ex&#x202F;: Agence d&#x2019;int&#xe9;gration — on con&#xe7;oit, construit et connecte des syst&#xe8;mes digitaux. Sites, apps, automatisation, IA. Premi&#xe8;re version en 14&#x202F;jours, forfait mensuel tout inclus, deux fondateurs sur chaque projet."></textarea>
+                    <textarea id="productDesc" rows="7" placeholder="Ex&#x202F;: Agence d&#x2019;int&#xe9;gration — on con&#xe7;oit, construit et connecte des syst&#xe8;mes digitaux."></textarea>
                 </div>
                 <div class="upload-sep"><span>ou importer un fichier</span></div>
                 <div class="upload-z" id="uploadZone">
@@ -460,15 +503,12 @@
     </div>
 </div>
 
-<!-- ═══════════════════════ RESULTS ═══════════════════════ -->
 <section id="results">
     <div class="W">
         <div class="r-head">
             <span class="r-tag">R&eacute;sultats</span>
             <span class="r-count"><em id="rCount">0</em> prospects</span>
         </div>
-
-        <!-- ICP 2 colonnes -->
         <div class="icp-block">
             <div class="icp-card">
                 <div class="icp-col-label">Profil client id&eacute;al</div>
@@ -497,8 +537,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Prospects -->
         <div class="prospects-wrap">
             <div class="p2-header">
                 <div class="p2-header-left">
@@ -514,6 +552,7 @@
                         <th>Email</th>
                         <th style="text-align:center;">Score</th>
                         <th>Pourquoi ce prospect</th>
+                        <th style="text-align:center;">Outreach</th>
                     </tr>
                 </thead>
                 <tbody id="rProspectsList"></tbody>
@@ -528,13 +567,12 @@
     </div>
 </section>
 
-<!-- ═══════════════════════ CAMPAIGNS ═══════════════════════ -->
 <section id="page-campaigns">
     <div class="W">
         <div class="pg-head">
             <div class="pg-label">Outreach</div>
             <div class="pg-title">Campagnes</div>
-            <div class="pg-sub">Suivi de statut par prospect contact&eacute; — cliquer sur le statut pour le faire avancer</div>
+            <div class="pg-sub">Suivi de statut par prospect contact&eacute; &mdash; cliquer sur le statut pour le faire avancer</div>
         </div>
         <div class="pg-body">
             <div class="campaign-list" id="campaignList"></div>
@@ -542,7 +580,6 @@
     </div>
 </section>
 
-<!-- ═══════════════════════ HISTORY ═══════════════════════ -->
 <section id="page-history">
     <div class="W">
         <div class="pg-head">
@@ -556,8 +593,37 @@
     </div>
 </section>
 
+<!-- EMAIL MODAL -->
+<div id="emailModal" onclick="closeEmailModal(event)">
+    <div class="em-box" onclick="event.stopPropagation()">
+        <div class="em-header">
+            <div class="em-title">&#x2709;&nbsp;Cold email &mdash; g&eacute;n&eacute;ration IA</div>
+            <button class="em-close" onclick="closeEmailModal()">&times;</button>
+        </div>
+        <div class="em-body">
+            <div class="em-field">
+                <div class="em-label">Destinataire</div>
+                <input class="em-input" id="emTo" type="email" placeholder="email@entreprise.com">
+            </div>
+            <div class="em-field">
+                <div class="em-label">Sujet</div>
+                <input class="em-input" id="emSubject" type="text" placeholder="G&eacute;n&eacute;ration en cours&hellip;">
+            </div>
+            <div class="em-field">
+                <div class="em-label">Corps</div>
+                <textarea class="em-input em-textarea" id="emBody" placeholder="G&eacute;n&eacute;ration en cours&hellip;"></textarea>
+            </div>
+        </div>
+        <div class="em-footer">
+            <div class="em-status" id="emStatus"></div>
+            <button class="btn-s" onclick="closeEmailModal()">Annuler</button>
+            <button class="btn-s lime" id="emSendBtn" onclick="sendEmail()" disabled>Envoyer &rarr;</button>
+        </div>
+    </div>
+</div>
+
 <script>
-    /* ─── CURSOR ─── */
+    /* CURSOR */
     const C = document.getElementById('cur'), A = document.getElementById('aura');
     let ax = 0, ay = 0, mx = 0, my = 0;
     document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; C.style.left = mx + 'px'; C.style.top = my + 'px'; });
@@ -567,13 +633,13 @@
         el.addEventListener('mouseleave', () => C.classList.remove('h'));
     });
 
-    /* ─── SLIDER ─── */
+    /* SLIDER */
     document.getElementById('numP').addEventListener('input', function () {
         document.getElementById('sv').textContent = this.value;
         document.getElementById('svDisplay').textContent = this.value;
     });
 
-    /* ─── FILE UPLOAD ─── */
+    /* FILE UPLOAD */
     const uz = document.getElementById('uploadZone');
     uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('dg'); });
     uz.addEventListener('dragleave', () => uz.classList.remove('dg'));
@@ -599,7 +665,7 @@
     function showFile(n) { uz.style.display = 'none'; const fo = document.getElementById('fileOk'); fo.style.display = 'flex'; document.getElementById('fileName').textContent = n; }
     function clearFile() { document.getElementById('fi').value = ''; uz.style.display = 'flex'; document.getElementById('fileOk').style.display = 'none'; document.getElementById('productDesc').value = ''; }
 
-    /* ─── STEPS ─── */
+    /* STEPS */
     function setStep(n) {
         [1, 2, 3].forEach(i => {
             const el = document.getElementById('step' + i);
@@ -609,7 +675,7 @@
         });
     }
 
-    /* ─── LOADING ─── */
+    /* LOADING */
     let lt;
     function startLoad() {
         ['ls1', 'ls2', 'ls3', 'ls4'].forEach(id => document.getElementById(id).classList.remove('a', 'd'));
@@ -618,7 +684,7 @@
     }
     function stopLoad() { clearInterval(lt); }
 
-    /* ─── PAGE MANAGEMENT ─── */
+    /* PAGE MANAGEMENT */
     function showSection(id) {
         ['formSection', 'loading', 'results', 'page-campaigns', 'page-history'].forEach(s => {
             const el = document.getElementById(s);
@@ -654,7 +720,7 @@
         if (tab === 'history') renderHistory();
     }
 
-    /* ─── GENERATE ─── */
+    /* GENERATE */
     let prsp = [], currentIcp = {}, currentDesc = '', currentRegion = '';
 
     async function generate() {
@@ -685,24 +751,21 @@
         } catch (e) {
             stopLoad();
             goHome();
-            showErr('Erreur : ' + e.message);
+            showErr('Erreur : ' + e.message);
         }
     }
 
-    /* ─── RENDER RESULTS ─── */
+    /* RENDER RESULTS */
     function render({ icp, prospects }) {
         prsp = prospects;
         currentIcp = icp;
 
-        // Persona
         document.getElementById('rPersonaTitle').textContent = icp.persona_title || (icp.job_titles || [''])[0] || '—';
         document.getElementById('rPersonaSub').textContent = icp.persona_subtitle || 'Décideur direct sur ce type de service';
 
-        // Title tags
         document.getElementById('rTitleTags').innerHTML = (icp.job_titles || []).map((t, i) =>
             `<span class="icp-tag${i < 3 ? ' hl' : ''}">${t}</span>`).join('');
 
-        // Company profile
         const cp = icp.company_profile || {};
         document.getElementById('rCompanyAttrs').innerHTML = [
             { k: 'Taille', v: cp.taille || (icp.company_size || []).join(', ') || '—' },
@@ -713,7 +776,6 @@
             { k: 'Budget', v: cp.budget || '—' },
         ].map(f => `<div class="c-attr"><div class="c-attr-k">${f.k}</div><div class="c-attr-v">${f.v}</div></div>`).join('');
 
-        // Proof
         const proof = icp.proof || [];
         if (proof.length) {
             document.getElementById('rProofStats').innerHTML = proof.map(p => `
@@ -729,7 +791,6 @@
                 `<div class="proof-stat"><div class="proof-num">&rarr;</div><div><div class="proof-text">${s}</div></div></div>`).join('');
         }
 
-        // Reasoning
         if (icp.reasoning) {
             document.getElementById('rReasoningText').textContent = icp.reasoning;
             document.getElementById('rReasoningBlock').style.display = 'block';
@@ -737,18 +798,16 @@
             document.getElementById('rReasoningBlock').style.display = 'none';
         }
 
-        // Counts
         document.getElementById('rCount').textContent = prospects.length;
         document.getElementById('rProspectsCount').textContent = prospects.length + ' prospects — triés par score de matching';
         document.getElementById('rProspectsTitle').textContent = 'Liste de prospection — ' + currentRegion;
         document.getElementById('rExportMeta').textContent = prospects.length + ' prospects · export CSV disponible';
 
-        // Rows
         const extIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
         const liIcon = `<svg viewBox="0 0 24 24" fill="currentColor" width="8" height="8"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>`;
         const webIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="8" height="8"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
 
-        document.getElementById('rProspectsList').innerHTML = prospects.map(p => {
+        document.getElementById('rProspectsList').innerHTML = prospects.map((p, i) => {
             const score = p.score || 0;
             const sc = score >= 80 ? 'hi' : 'md';
             const args = p.arguments || [];
@@ -761,6 +820,10 @@
                     <div class="p2-arg-dot"></div>
                     <div class="p2-arg-text">${(a.text || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}${a.source_url ? `<a class="p2-arg-src" href="${a.source_url}" target="_blank" onclick="event.stopPropagation()">${extIcon}${a.source_label || 'Source'}</a>` : ''}</div>
                 </li>`).join('');
+
+            const emailBtn = (score >= 85 && p.Email)
+                ? `<button class="btn-email" onclick="openEmailModal(${i});event.stopPropagation()">&#x2709;&nbsp;Email</button>`
+                : `<span style="color:#1a1a1a;font-family:'JetBrains Mono',monospace;font-size:9px;">—</span>`;
 
             return `<tr>
                 <td>
@@ -779,6 +842,7 @@
                     </div>
                 </td>
                 <td><ul class="p2-args">${argsHtml}</ul></td>
+                <td style="vertical-align:middle;text-align:center;">${emailBtn}</td>
             </tr>`;
         }).join('');
 
@@ -787,11 +851,10 @@
         setStep(3);
         document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
 
-        // Save to storage
         saveSession({ icp, prospects, desc: currentDesc, region: currentRegion });
     }
 
-    /* ─── EXPORT CSV ─── */
+    /* EXPORT CSV */
     function exportCSV() {
         if (!prsp.length) return;
         const cols = ['Nom', 'Poste', 'Entreprise', 'Secteur', 'Taille', 'Email', 'LinkedIn', 'Website', 'Ville', 'score'];
@@ -802,14 +865,14 @@
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }
 
-    /* ─── RESET ─── */
+    /* RESET */
     function reset() { prsp = []; goHome(); document.getElementById('productDesc').value = ''; clearFile(); }
 
-    /* ─── ERRORS ─── */
+    /* ERRORS */
     function showErr(m) { const b = document.getElementById('errBar'); b.textContent = m; b.style.display = 'block'; }
     function hideErr() { document.getElementById('errBar').style.display = 'none'; }
 
-    /* ─── LOCALSTORAGE ─── */
+    /* LOCALSTORAGE */
     function getSessions() { try { return JSON.parse(localStorage.getItem('pgb_sessions') || '[]'); } catch { return []; } }
     function saveSessions(s) { localStorage.setItem('pgb_sessions', JSON.stringify(s)); }
 
@@ -822,10 +885,10 @@
         saveSessions(sessions.slice(0, 50));
     }
 
-    /* ─── STATUS CYCLING ─── */
+    /* STATUS CYCLING */
     const STATUS_CONFIG = {
         waiting:  { label: 'En attente', cls: 'sp-wait' },
-        followup: { label: 'Relancé',    cls: 'sp-follow' },
+        followup: { label: 'Rellancé',    cls: 'sp-follow' },
         replied:  { label: 'Répondu',    cls: 'sp-replied' },
         signed:   { label: 'Signé',      cls: 'sp-signed' },
         lost:     { label: 'Perdu',      cls: 'sp-lost' }
@@ -851,7 +914,7 @@
 
     function toggleCard(el) { el.classList.toggle('open'); }
 
-    /* ─── CAMPAIGNS ─── */
+    /* CAMPAIGNS */
     function renderCampaigns() {
         const sessions = getSessions();
         const el = document.getElementById('campaignList');
@@ -867,7 +930,7 @@
                 { n: counts.signed,  l: 'Signé',    c: '#4ADE80' },
                 { n: counts.replied, l: 'Répondu',  c: 'var(--lime)' },
                 { n: counts.followup,l: 'Relancé',  c: '#FFD166' },
-                { n: counts.waiting, l: 'Attente',       c: '#333' },
+                { n: counts.waiting, l: 'Attente',  c: '#333' },
             ].map(st => `<div class="cstat"><div class="cstat-n" style="color:${st.c}">${st.n}</div><div class="cstat-l">${st.l}</div></div>`).join('');
 
             const rowsHtml = (s.prospects || []).map((p, i) => `
@@ -901,12 +964,12 @@
         }).join('');
     }
 
-    /* ─── HISTORY ─── */
+    /* HISTORY */
     function renderHistory() {
         const sessions = getSessions();
         const el = document.getElementById('historyList');
         if (!sessions.length) {
-            el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">—</div><div class="empty-state-title">Aucune recherche</div><div class="empty-state-sub">Lance ta première recherche pour voir l’historique</div></div>`;
+            el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">—</div><div class="empty-state-title">Aucune recherche</div><div class="empty-state-sub">Lance ta première recherche pour voir l'historique</div></div>`;
             return;
         }
         el.innerHTML = sessions.map(s => {
@@ -962,6 +1025,89 @@
                 </div>
             </div>`;
         }).join('');
+    }
+
+    /* EMAIL MODAL */
+    let _emailIdx = -1;
+
+    async function openEmailModal(idx) {
+        _emailIdx = idx;
+        const p = prsp[idx];
+
+        document.getElementById('emTo').value = p.Email || '';
+        document.getElementById('emSubject').value = '';
+        document.getElementById('emBody').value = '';
+        document.getElementById('emStatus').textContent = 'Génération en cours…';
+        document.getElementById('emStatus').className = 'em-status';
+        document.getElementById('emSendBtn').disabled = true;
+        document.getElementById('emailModal').classList.add('open');
+
+        try {
+            const r = await fetch('/api/generate-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prospect: p,
+                    icp: currentIcp,
+                    service_description: currentDesc
+                })
+            });
+            if (!r.ok) { const e = await r.json(); throw new Error(e.detail); }
+            const { subject, body } = await r.json();
+            document.getElementById('emSubject').value = subject || '';
+            document.getElementById('emBody').value = body || '';
+            document.getElementById('emStatus').textContent = 'Email généré — vérifie et envoie.';
+            document.getElementById('emSendBtn').disabled = false;
+        } catch (e) {
+            document.getElementById('emStatus').textContent = 'Erreur : ' + e.message;
+            document.getElementById('emStatus').className = 'em-status err';
+        }
+    }
+
+    function closeEmailModal(e) {
+        if (e && e.target !== document.getElementById('emailModal')) return;
+        document.getElementById('emailModal').classList.remove('open');
+        _emailIdx = -1;
+    }
+
+    async function sendEmail() {
+        const to = document.getElementById('emTo').value.trim();
+        const subject = document.getElementById('emSubject').value.trim();
+        const body = document.getElementById('emBody').value.trim();
+        const btn = document.getElementById('emSendBtn');
+        const status = document.getElementById('emStatus');
+
+        if (!to || !subject || !body) { status.textContent = 'Remplis tous les champs.'; status.className = 'em-status err'; return; }
+
+        btn.disabled = true;
+        status.textContent = 'Envoi en cours…';
+        status.className = 'em-status';
+
+        try {
+            const r = await fetch('/api/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ to, subject, body })
+            });
+            if (!r.ok) { const e = await r.json(); throw new Error(e.detail); }
+            status.textContent = '✓ Email envoyé à ' + to;
+            status.className = 'em-status ok';
+
+            if (_emailIdx >= 0) {
+                const sessions = getSessions();
+                const cur = sessions[0];
+                if (cur && cur.prospects[_emailIdx] && cur.prospects[_emailIdx].status === 'waiting') {
+                    cur.prospects[_emailIdx].status = 'followup';
+                    saveSessions(sessions);
+                }
+            }
+
+            setTimeout(() => { document.getElementById('emailModal').classList.remove('open'); _emailIdx = -1; }, 2200);
+        } catch (e) {
+            status.textContent = 'Erreur : ' + e.message;
+            status.className = 'em-status err';
+            btn.disabled = false;
+        }
     }
 </script>
 </body>
