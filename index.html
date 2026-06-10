@@ -721,7 +721,7 @@
     }
 
     /* GENERATE */
-    let prsp = [], currentIcp = {}, currentDesc = '', currentRegion = '';
+    let prsp = [], currentIcp = {}, currentDesc = '', currentRegion = '', currentSessionId = '';
 
     async function generate() {
         const desc = document.getElementById('productDesc').value.trim();
@@ -747,7 +747,9 @@
             });
             stopLoad();
             if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Erreur serveur'); }
-            render(await r.json());
+            const data = await r.json();
+            if (data.session_id) currentSessionId = data.session_id;
+            render(data);
         } catch (e) {
             stopLoad();
             goHome();
@@ -850,8 +852,6 @@
         document.getElementById('stepsBar').style.display = 'block';
         setStep(3);
         document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
-
-        saveSession({ icp, prospects, desc: currentDesc, region: currentRegion });
     }
 
     /* EXPORT CSV */
@@ -872,17 +872,13 @@
     function showErr(m) { const b = document.getElementById('errBar'); b.textContent = m; b.style.display = 'block'; }
     function hideErr() { document.getElementById('errBar').style.display = 'none'; }
 
-    /* LOCALSTORAGE */
-    function getSessions() { try { return JSON.parse(localStorage.getItem('pgb_sessions') || '[]'); } catch { return []; } }
-    function saveSessions(s) { localStorage.setItem('pgb_sessions', JSON.stringify(s)); }
-
-    function saveSession({ icp, prospects, desc, region }) {
-        const sessions = getSessions();
-        const id = Date.now().toString();
-        const campaignName = desc.slice(0, 50).trim() + (desc.length > 50 ? '…' : '') + ' — ' + region;
-        const prospectsWithStatus = prospects.map(p => ({ ...p, status: 'waiting', note: '' }));
-        sessions.unshift({ id, date: new Date().toLocaleDateString('fr-FR'), ts: Date.now(), service: desc.slice(0, 100), region, icp, prospects: prospectsWithStatus, campaign_name: campaignName });
-        saveSessions(sessions.slice(0, 50));
+    /* SESSIONS — API-backed */
+    async function getSessions() {
+        try {
+            const r = await fetch('/api/sessions');
+            if (!r.ok) return [];
+            return await r.json();
+        } catch { return []; }
     }
 
     /* STATUS CYCLING */
@@ -895,16 +891,16 @@
     };
     const STATUS_ORDER = ['waiting', 'followup', 'replied', 'signed', 'lost'];
 
-    function cycleStatus(sessionId, idx, e) {
+    async function cycleStatus(sessionId, idx, e) {
         e.stopPropagation();
-        const sessions = getSessions();
-        const s = sessions.find(s => s.id === sessionId);
-        if (!s || !s.prospects[idx]) return;
-        const cur = s.prospects[idx].status || 'waiting';
-        const nextIdx = (STATUS_ORDER.indexOf(cur) + 1) % STATUS_ORDER.length;
-        s.prospects[idx].status = STATUS_ORDER[nextIdx];
-        saveSessions(sessions);
-        renderCampaigns();
+        try {
+            await fetch(`/api/sessions/${sessionId}/prospects/${idx}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'cycle' })
+            });
+            await renderCampaigns();
+        } catch {}
     }
 
     function statusPill(status, sessionId, idx) {
@@ -915,8 +911,8 @@
     function toggleCard(el) { el.classList.toggle('open'); }
 
     /* CAMPAIGNS */
-    function renderCampaigns() {
-        const sessions = getSessions();
+    async function renderCampaigns() {
+        const sessions = await getSessions();
         const el = document.getElementById('campaignList');
         if (!sessions.length) {
             el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">—</div><div class="empty-state-title">Aucune campagne</div><div class="empty-state-sub">Lance ta première recherche pour créer une campagne</div></div>`;
@@ -965,8 +961,8 @@
     }
 
     /* HISTORY */
-    function renderHistory() {
-        const sessions = getSessions();
+    async function renderHistory() {
+        const sessions = await getSessions();
         const el = document.getElementById('historyList');
         if (!sessions.length) {
             el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">—</div><div class="empty-state-title">Aucune recherche</div><div class="empty-state-sub">Lance ta première recherche pour voir l'historique</div></div>`;
@@ -1093,13 +1089,12 @@
             status.textContent = '✓ Email envoyé à ' + to;
             status.className = 'em-status ok';
 
-            if (_emailIdx >= 0) {
-                const sessions = getSessions();
-                const cur = sessions[0];
-                if (cur && cur.prospects[_emailIdx] && cur.prospects[_emailIdx].status === 'waiting') {
-                    cur.prospects[_emailIdx].status = 'followup';
-                    saveSessions(sessions);
-                }
+            if (_emailIdx >= 0 && currentSessionId) {
+                await fetch(`/api/sessions/${currentSessionId}/prospects/${_emailIdx}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'followup' })
+                });
             }
 
             setTimeout(() => { document.getElementById('emailModal').classList.remove('open'); _emailIdx = -1; }, 2200);
