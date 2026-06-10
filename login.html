@@ -36,7 +36,7 @@
       color: #666;
       margin-bottom: 0.5rem;
     }
-    input[type="password"] {
+    input[type="email"] {
       width: 100%;
       padding: 0.75rem 1rem;
       background: #111;
@@ -48,7 +48,7 @@
       outline: none;
       transition: border-color 0.15s;
     }
-    input[type="password"]:focus { border-color: #444; }
+    input[type="email"]:focus { border-color: #444; }
     button {
       width: 100%;
       padding: 0.75rem;
@@ -65,62 +65,105 @@
     }
     button:hover { opacity: 0.85; }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
-    .error {
+    .message {
       margin-top: 1rem;
       padding: 0.75rem 1rem;
-      background: #120808;
-      border: 1px solid #3a1515;
       border-radius: 6px;
-      color: #e06060;
       font-size: 0.8125rem;
       display: none;
     }
-    .error.visible { display: block; }
+    .message.success {
+      background: #081208;
+      border: 1px solid #1a3a1a;
+      color: #60a060;
+    }
+    .message.error {
+      background: #120808;
+      border: 1px solid #3a1515;
+      color: #e06060;
+    }
+    .message.visible { display: block; }
+    .check-icon {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    .check-icon.visible { display: block; }
   </style>
 </head>
 <body>
   <div class="card">
     <div class="logo">PGB <span>/</span> Prospecting</div>
-    <h1>Accès réservé</h1>
-    <p class="sub">Outil interne. Mot de passe requis.</p>
-    <form id="loginForm">
-      <label for="password">Mot de passe</label>
-      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" autofocus>
-      <button type="submit" id="submitBtn">Accéder</button>
-      <div class="error" id="errorMsg">Mot de passe incorrect.</div>
-    </form>
+
+    <div id="formView">
+      <h1>Accès réservé</h1>
+      <p class="sub">Entre ton adresse email pour recevoir un lien de connexion.</p>
+      <form id="loginForm">
+        <label for="email">Adresse email</label>
+        <input type="email" id="email" placeholder="prenom@example.com" autocomplete="email" autofocus>
+        <button type="submit" id="submitBtn">Envoyer le lien</button>
+        <div class="message error" id="errorMsg">Une erreur est survenue. Réessaie.</div>
+      </form>
+    </div>
+
+    <div id="successView" style="display:none">
+      <div class="check-icon visible">✉️</div>
+      <h1>Vérifie ta boîte</h1>
+      <p class="sub" style="margin-bottom:0">Un lien de connexion a été envoyé à <strong id="sentEmail"></strong>. Il expire dans 15 minutes.</p>
+    </div>
+
+    <div id="expiredView" style="display:none">
+      <h1>Lien expiré</h1>
+      <p class="sub" style="margin-bottom:1.5rem">Ce lien a expiré ou est déjà utilisé. Demande-en un nouveau.</p>
+      <button onclick="showForm()">Recommencer</button>
+    </div>
   </div>
+
   <script>
+    // Afficher vue expirée si ?error=expired dans l'URL
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('error') === 'expired') {
+      document.getElementById('formView').style.display = 'none';
+      document.getElementById('expiredView').style.display = 'block';
+    }
+
+    function showForm() {
+      document.getElementById('expiredView').style.display = 'none';
+      document.getElementById('formView').style.display = 'block';
+      document.getElementById('email').focus();
+    }
+
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('submitBtn');
       const err = document.getElementById('errorMsg');
-      const pwd = document.getElementById('password').value;
-      if (!pwd) return;
+      const email = document.getElementById('email').value.trim();
+      if (!email) return;
+
       btn.disabled = true;
-      btn.textContent = 'Vérification…';
+      btn.textContent = 'Envoi en cours…';
       err.classList.remove('visible');
+
       try {
-        const res = await fetch('/api/login', {
+        const res = await fetch('/api/magic-link', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: pwd }),
+          body: JSON.stringify({ email }),
           credentials: 'include',
         });
+
         if (res.ok) {
-          window.location.href = '/';
+          // Toujours afficher la vue succès (même si email non autorisé — sécurité)
+          document.getElementById('formView').style.display = 'none';
+          document.getElementById('sentEmail').textContent = email;
+          document.getElementById('successView').style.display = 'block';
         } else {
-          err.classList.add('visible');
-          btn.disabled = false;
-          btn.textContent = 'Accéder';
-          document.getElementById('password').value = '';
-          document.getElementById('password').focus();
+          throw new Error();
         }
       } catch {
-        err.textContent = 'Erreur réseau. Réessaie.';
         err.classList.add('visible');
         btn.disabled = false;
-        btn.textContent = 'Accéder';
+        btn.textContent = 'Envoyer le lien';
       }
     });
   </script>

@@ -5,6 +5,7 @@ import io
 import os
 import secrets
 import smtplib
+import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -18,16 +19,48 @@ from icp import generate_icp
 from prospecting import search_prospects
 from email_gen import generate_cold_email
 
-AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "")
+# ── Config ────────────────────────────────────────────────────────────────────
+
+ALLOWED_EMAILS: set[str] = {
+    e.strip().lower()
+    for e in os.getenv("ALLOWED_EMAILS", "").split(",")
+    if e.strip()
+}
 AUTH_SECRET = os.getenv("AUTH_SECRET", "pgb-prospecting-secret")
 GMAIL_EMAIL = os.getenv("GMAIL_EMAIL")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
+RAILWAY_URL = os.getenv("RAILWAY_URL", "https://pgb-prospecting.up.railway.app")
+
+MAGIC_LINK_TOKENS: dict[str, dict] = {}  # {token: {email, expires}}
+TOKEN_TTL = 900  # 15 minutes
 
 
-def _make_token() -> str:
-    """Token déterministe dérivé du mot de passe + secret. Survit aux redéploiements."""
-    return hashlib.sha256(f"{AUTH_PASSWORD}:{AUTH_SECRET}".encode()).hexdigest()
+def _make_session_token(email: str) -> str:
+    """Token de session déterministe par email — survit aux redéploiements."""
+    return hashlib.sha256(f"{email.lower()}:{AUTH_SECRET}".encode()).hexdigest()
 
+
+def _send_magic_link(to_email: str, token: str) -> None:
+    """Envoie le magic link par email via Gmail SMTP."""
+    link = f"{RAILWAY_URL}/api/verify?token={token}"
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "PGB Prospecting — Lien de connexion"
+    msg["From"] = GMAIL_EMAIL
+    msg["To"] = to_email
+    body = (
+        f"Bonjour,\n\n"
+        f"Voici ton lien de connexion à PGB Prospecting (valable 15 minutes) :\n\n"
+        f"{link}\n\n"
+        f"Si tu n'as pas demandé ce lien, ignore cet email.\n\n"
+        f"— PGB Prospecting"
+    )
+    msg.attach(MIMEText(body, "plain", "utf-8"))
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(GMAIL_EMAIL, GMAIL_APP_PASSWORD)
+        server.sendmail(GMAIL_EMAIL, to_email, msg.as_string())
+
+
+# ── App ───────────────────────────────────────────────────────────────────────
 
 app = FastAPI(
     title="PGB Prospecting",
@@ -46,16 +79,19 @@ app.add_middleware(
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    """Protège toutes les routes sauf /login et /api/login.
-    Si AUTH_PASSWORD n'est pas défini (dev local), laisse tout passer.
+    """Protège toutes les routes sauf /login, /api/magic-link, /api/verify.
+    Si ALLOWED_EMAILS n'est pas défini (dev local), laisse tout passer.
     """
-    public_paths = {"/login", "/api/login"}
-    if request.url.path in public_paths or not AUTH_PASSWORD:
+    public_paths = {"/login", "/api/magic-link", "/api/verify"}
+    if request.url.path in public_paths or not ALLOWED_EMAILS:
         return await call_next(request)
 
     session_token = request.cookies.get("pgb_session")
-    expected = _make_token()
-    if not session_token or not secrets.compare_digest(session_token, expected):
+    valid = session_token and any(
+        secrets.compare_digest(session_token, _make_session_token(e))
+        for e in ALLOWED_EMAILS
+    )
+    if not valid:
         if request.url.path.startswith("/api/"):
             return JSONResponse(status_code=401, content={"detail": "Non authentifié"})
         return RedirectResponse(url="/login")
@@ -65,8 +101,8 @@ async def auth_middleware(request: Request, call_next):
 
 # ── Request models ────────────────────────────────────────────────────────────
 
-class LoginRequest(BaseModel):
-    password: str
+class MagicLinkRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=200)
 
 
 class GenerateRequest(BaseModel):
@@ -87,31 +123,45 @@ class SendEmailRequest(BaseModel):
     body: str
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# ── Routes auth ───────────────────────────────────────────────────────────────
 
 @app.get("/login")
 async def login_page():
     return FileResponse("login.html")
 
 
-@app.post("/api/login")
-async def api_login(req: LoginRequest, response: Response):
-    if not AUTH_PASSWORD:
-        raise HTTPException(
-            status_code=500,
-            detail="AUTH_PASSWORD non configuré dans les variables d'environnement Railway."
-        )
-    if not req.password or not secrets.compare_digest(req.password, AUTH_PASSWORD):
-        raise HTTPException(status_code=401, detail="Mot de passe incorrect.")
+@app.post("/api/magic-link")
+async def request_magic_link(req: MagicLinkRequest):
+    """Envoie un magic link si l'email est dans la whitelist.
+    Retourne toujours 200 pour ne pas révéler quels emails sont autorisés.
+    """
+    email = req.email.strip().lower()
+    if email in ALLOWED_EMAILS and GMAIL_EMAIL and GMAIL_APP_PASSWORD:
+        token = secrets.token_urlsafe(32)
+        MAGIC_LINK_TOKENS[token] = {"email": email, "expires": time.time() + TOKEN_TTL}
+        try:
+            _send_magic_link(email, token)
+        except Exception:
+            pass  # Silent fail — ne pas révéler l'erreur
+    return {"success": True}
+
+
+@app.get("/api/verify")
+async def verify_magic_link(token: str, response: Response):
+    """Valide le magic link, pose le cookie de session, redirige vers /."""
+    entry = MAGIC_LINK_TOKENS.pop(token, None)
+    if not entry or time.time() > entry["expires"]:
+        return RedirectResponse(url="/login?error=expired")
+
     response.set_cookie(
         key="pgb_session",
-        value=_make_token(),
+        value=_make_session_token(entry["email"]),
         httponly=True,
         secure=True,
         samesite="strict",
         max_age=30 * 24 * 3600,  # 30 jours
     )
-    return {"success": True}
+    return RedirectResponse(url="/")
 
 
 @app.post("/api/logout")
@@ -119,6 +169,8 @@ async def api_logout(response: Response):
     response.delete_cookie("pgb_session")
     return {"success": True}
 
+
+# ── Routes app ────────────────────────────────────────────────────────────────
 
 @app.get("/")
 async def root():
