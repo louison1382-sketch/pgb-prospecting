@@ -1,20 +1,33 @@
 # main.py — Serveur FastAPI PGB Prospecting
 
-import os
+import hashlib
 import io
+import os
+import secrets
 import smtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from typing import Any
 
 from icp import generate_icp
 from prospecting import search_prospects
 from email_gen import generate_cold_email
+
+AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "")
+AUTH_SECRET = os.getenv("AUTH_SECRET", "pgb-prospecting-secret")
+GMAIL_EMAIL = os.getenv("GMAIL_EMAIL")
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
+
+
+def _make_token() -> str:
+    """Token déterministe dérivé du mot de passe + secret. Survit aux redéploiements."""
+    return hashlib.sha256(f"{AUTH_PASSWORD}:{AUTH_SECRET}".encode()).hexdigest()
+
 
 app = FastAPI(
     title="PGB Prospecting",
@@ -30,11 +43,31 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 
-GMAIL_EMAIL = os.getenv("GMAIL_EMAIL")
-GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    """Protège toutes les routes sauf /login et /api/login.
+    Si AUTH_PASSWORD n'est pas défini (dev local), laisse tout passer.
+    """
+    public_paths = {"/login", "/api/login"}
+    if request.url.path in public_paths or not AUTH_PASSWORD:
+        return await call_next(request)
+
+    session_token = request.cookies.get("pgb_session")
+    expected = _make_token()
+    if not session_token or not secrets.compare_digest(session_token, expected):
+        if request.url.path.startswith("/api/"):
+            return JSONResponse(status_code=401, content={"detail": "Non authentifié"})
+        return RedirectResponse(url="/login")
+
+    return await call_next(request)
 
 
 # ── Request models ────────────────────────────────────────────────────────────
+
+class LoginRequest(BaseModel):
+    password: str
+
 
 class GenerateRequest(BaseModel):
     product_description: str = Field(min_length=20, max_length=5000)
@@ -55,6 +88,37 @@ class SendEmailRequest(BaseModel):
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
+@app.get("/login")
+async def login_page():
+    return FileResponse("login.html")
+
+
+@app.post("/api/login")
+async def api_login(req: LoginRequest, response: Response):
+    if not AUTH_PASSWORD:
+        raise HTTPException(
+            status_code=500,
+            detail="AUTH_PASSWORD non configuré dans les variables d'environnement Railway."
+        )
+    if not req.password or not secrets.compare_digest(req.password, AUTH_PASSWORD):
+        raise HTTPException(status_code=401, detail="Mot de passe incorrect.")
+    response.set_cookie(
+        key="pgb_session",
+        value=_make_token(),
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=30 * 24 * 3600,  # 30 jours
+    )
+    return {"success": True}
+
+
+@app.post("/api/logout")
+async def api_logout(response: Response):
+    response.delete_cookie("pgb_session")
+    return {"success": True}
+
 
 @app.get("/")
 async def root():
@@ -101,7 +165,7 @@ async def generate(req: GenerateRequest):
         raise HTTPException(status_code=500, detail=f"Erreur ICP : {str(e)}")
 
     try:
-        prospects = search_prospects(icp, country=req.country, num_results=req.num_results)
+        prospects = await search_prospects(icp, country=req.country, num_results=req.num_results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur sourcing : {str(e)}")
 
