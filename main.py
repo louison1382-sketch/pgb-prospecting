@@ -9,6 +9,7 @@ import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+import httpx
 from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
@@ -27,6 +28,8 @@ ALLOWED_EMAILS: set[str] = {
     if e.strip()
 }
 AUTH_SECRET = os.getenv("AUTH_SECRET", "pgb-prospecting-secret")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+RESEND_FROM = os.getenv("RESEND_FROM", "PGB Prospecting <onboarding@resend.dev>")
 GMAIL_EMAIL = os.getenv("GMAIL_EMAIL")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 RAILWAY_URL = os.getenv("RAILWAY_URL", "https://pgb-prospecting.up.railway.app")
@@ -40,13 +43,9 @@ def _make_session_token(email: str) -> str:
     return hashlib.sha256(f"{email.lower()}:{AUTH_SECRET}".encode()).hexdigest()
 
 
-def _send_magic_link(to_email: str, token: str) -> None:
-    """Envoie le magic link par email via Gmail SMTP."""
+async def _send_magic_link(to_email: str, token: str) -> None:
+    """Envoie le magic link via Resend API."""
     link = f"{RAILWAY_URL}/api/verify?token={token}"
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = "PGB Prospecting — Lien de connexion"
-    msg["From"] = GMAIL_EMAIL
-    msg["To"] = to_email
     body = (
         f"Bonjour,\n\n"
         f"Voici ton lien de connexion à PGB Prospecting (valable 15 minutes) :\n\n"
@@ -54,10 +53,19 @@ def _send_magic_link(to_email: str, token: str) -> None:
         f"Si tu n'as pas demandé ce lien, ignore cet email.\n\n"
         f"— PGB Prospecting"
     )
-    msg.attach(MIMEText(body, "plain", "utf-8"))
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-        server.login(GMAIL_EMAIL, GMAIL_APP_PASSWORD)
-        server.sendmail(GMAIL_EMAIL, to_email, msg.as_string())
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+            json={
+                "from": RESEND_FROM,
+                "to": [to_email],
+                "subject": "PGB Prospecting — Lien de connexion",
+                "text": body,
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
 
 
 # ── App ───────────────────────────────────────────────────────────────────────
@@ -136,11 +144,11 @@ async def request_magic_link(req: MagicLinkRequest):
     Retourne toujours 200 pour ne pas révéler quels emails sont autorisés.
     """
     email = req.email.strip().lower()
-    if email in ALLOWED_EMAILS and GMAIL_EMAIL and GMAIL_APP_PASSWORD:
+    if email in ALLOWED_EMAILS and RESEND_API_KEY:
         token = secrets.token_urlsafe(32)
         MAGIC_LINK_TOKENS[token] = {"email": email, "expires": time.time() + TOKEN_TTL}
         try:
-            _send_magic_link(email, token)
+            await _send_magic_link(email, token)
         except Exception:
             pass  # Silent fail — ne pas révéler l'erreur
     return {"success": True}
@@ -227,7 +235,7 @@ async def generate(req: GenerateRequest):
 @app.post("/api/generate-email")
 async def generate_email_endpoint(req: GenerateEmailRequest):
     """Génère un cold email personnalisé pour un prospect via Claude Haiku."""
-    if not req.service_description.strip():
+    if not req.service_description.strip():  
         raise HTTPException(status_code=400, detail="Description du service requise.")
     try:
         result = generate_cold_email(req.prospect, req.icp, req.service_description)
