@@ -1,7 +1,6 @@
 """Tests unitaires pour icp.py — fonctions pures, pas d'appels API."""
 
 import json
-import pytest
 from icp import _clean_json
 
 
