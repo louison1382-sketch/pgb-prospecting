@@ -68,7 +68,7 @@ ICP :
 - Secteurs : {sectors}
 - Signaux d'achat : {intent_signals}
 
-Génère exactement 3 statistiques réelles et vérifiables qui justifient cet ICP,
+Génère exactement 3 statistiques ou observations de marché qui justifient cet ICP,
 plus un paragraphe de reasoning.
 
 Format JSON :
@@ -94,7 +94,8 @@ Format JSON :
 }}
 
 Guidelines :
-- Les 3 stats doivent être issues de publications réelles (Gartner, McKinsey, Bpifrance, INSEE, Forrester, etc.)
+- Les stats sont issues de la connaissance générale du modèle (pas d'accès web temps réel) — elles sont illustratives
+- Cite des sources crédibles et plausibles (Gartner, McKinsey, Bpifrance, INSEE, Forrester, etc.) mais sans garantie de vérification
 - Chiffres précis, pas de fourchettes vagues
 - reasoning : paragraphe court, affirmatif, sans jargon
 
@@ -102,6 +103,12 @@ Réponds UNIQUEMENT avec le JSON valide, sans texte avant ou après."""
 
 
 # ── GÉNÉRATION ───────────────────────────────────────────────────────────────
+
+PROOF_DISCLAIMER = (
+    "Données illustratives issues de la connaissance générale du modèle "
+    "(sans accès web temps réel). À vérifier avant usage commercial."
+)
+
 
 def generate_icp(product_description: str) -> dict:
     """
@@ -139,9 +146,10 @@ def generate_icp(product_description: str) -> dict:
     raw_proof = _clean_json(proof_msg.content[0].text)
     proof_data = json.loads(raw_proof)
 
-    # Merge
+    # Merge — avec disclaimer explicite sur les stats
     icp["proof"] = proof_data.get("proof", [])
     icp["reasoning"] = proof_data.get("reasoning", "")
+    icp["proof_disclaimer"] = PROOF_DISCLAIMER
 
     return icp
 
