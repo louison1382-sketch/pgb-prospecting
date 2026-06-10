@@ -6,6 +6,8 @@ import os
 import secrets
 import smtplib
 import time
+from contextlib import asynccontextmanager
+from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -14,8 +16,11 @@ from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import Any
 
+from database import AsyncSessionLocal, DBProspect, DBSession, init_db
 from icp import generate_icp
 from prospecting import search_prospects
 from email_gen import generate_cold_email
@@ -37,6 +42,7 @@ RAILWAY_URL = os.getenv("RAILWAY_URL", "https://pgb-prospecting.up.railway.app")
 
 MAGIC_LINK_TOKENS: dict[str, dict] = {}  # {token: {email, expires}}
 TOKEN_TTL = 900  # 15 minutes
+STATUS_ORDER = ["waiting", "followup", "replied", "signed", "lost"]
 
 # Auth active si au moins un des deux mécanismes est configuré
 AUTH_ENABLED = bool(ALLOWED_EMAILS or AUTH_PASSWORD)
@@ -51,11 +57,9 @@ def _valid_session(session_token: str | None) -> bool:
     """Vérifie si le cookie de session est valide (email ou mot de passe)."""
     if not session_token:
         return False
-    # Vérifie contre chaque email autorisé
     for email in ALLOWED_EMAILS:
         if secrets.compare_digest(session_token, _make_session_token(email)):
             return True
-    # Vérifie contre le mot de passe partagé
     if AUTH_PASSWORD and secrets.compare_digest(session_token, _make_session_token(AUTH_PASSWORD)):
         return True
     return False
@@ -86,10 +90,19 @@ async def _send_magic_link(to_email: str, token: str) -> None:
         resp.raise_for_status()
 
 
+# ── Lifespan ──────────────────────────────────────────────────────────────────
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
+
 # ── App ───────────────────────────────────────────────────────────────────────
 
 app = FastAPI(
     title="PGB Prospecting",
+    lifespan=lifespan,
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -98,25 +111,20 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://pgb-prospecting.up.railway.app"],
-    allow_methods=["POST", "GET"],
+    allow_methods=["POST", "GET", "PATCH"],
     allow_headers=["Content-Type"],
 )
 
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    """Protège toutes les routes sauf /login et les routes d'auth publiques.
-    Si aucun mécanisme d'auth n'est configuré (dev local), laisse tout passer.
-    """
     public_paths = {"/login", "/api/magic-link", "/api/verify", "/api/login"}
     if request.url.path in public_paths or not AUTH_ENABLED:
         return await call_next(request)
-
     if not _valid_session(request.cookies.get("pgb_session")):
         if request.url.path.startswith("/api/"):
             return JSONResponse(status_code=401, content={"detail": "Non authentifié"})
         return RedirectResponse(url="/login")
-
     return await call_next(request)
 
 
@@ -148,6 +156,11 @@ class SendEmailRequest(BaseModel):
     body: str
 
 
+class StatusUpdateRequest(BaseModel):
+    action: str | None = None   # 'cycle'
+    status: str | None = None   # direct status set
+
+
 # ── Routes auth ───────────────────────────────────────────────────────────────
 
 @app.get("/login")
@@ -157,7 +170,6 @@ async def login_page():
 
 @app.post("/api/login")
 async def api_login(req: LoginRequest):
-    """Authentification par mot de passe partagé."""
     if not AUTH_PASSWORD:
         raise HTTPException(status_code=404, detail="Not found")
     if not secrets.compare_digest(req.password, AUTH_PASSWORD):
@@ -176,9 +188,6 @@ async def api_login(req: LoginRequest):
 
 @app.post("/api/magic-link")
 async def request_magic_link(req: MagicLinkRequest):
-    """Envoie un magic link si l'email est dans la whitelist.
-    Retourne toujours 200 pour ne pas révéler quels emails sont autorisés.
-    """
     email = req.email.strip().lower()
     if email in ALLOWED_EMAILS and RESEND_API_KEY:
         token = secrets.token_urlsafe(32)
@@ -192,11 +201,9 @@ async def request_magic_link(req: MagicLinkRequest):
 
 @app.get("/api/verify")
 async def verify_magic_link(token: str):
-    """Valide le magic link, pose le cookie de session, redirige vers /."""
     entry = MAGIC_LINK_TOKENS.pop(token, None)
     if not entry or time.time() > entry["expires"]:
         return RedirectResponse(url="/login?error=expired")
-
     redirect = RedirectResponse(url="/")
     redirect.set_cookie(
         key="pgb_session",
@@ -232,7 +239,6 @@ async def parse_document(file: UploadFile = File(...)):
             text = content.decode("utf-8")
         except Exception:
             raise HTTPException(status_code=400, detail="Impossible de lire le fichier texte.")
-
     elif filename.endswith(".pdf"):
         try:
             from pypdf import PdfReader
@@ -266,12 +272,100 @@ async def generate(req: GenerateRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur sourcing : {str(e)}")
 
-    return {"icp": icp, "prospects": prospects}
+    # Persist to database
+    session_id = str(int(time.time() * 1000))
+    if AsyncSessionLocal:
+        try:
+            campaign_name = (
+                req.product_description[:50].strip()
+                + ("…" if len(req.product_description) > 50 else "")
+                + " — " + req.country
+            )
+            async with AsyncSessionLocal() as db:
+                db_session = DBSession(
+                    id=session_id,
+                    ts=int(time.time() * 1000),
+                    date_fr=datetime.now().strftime("%d/%m/%Y"),
+                    service=req.product_description[:100],
+                    region=req.country,
+                    campaign_name=campaign_name,
+                    icp=icp,
+                )
+                db.add(db_session)
+                for i, p in enumerate(prospects):
+                    db.add(DBProspect(
+                        session_id=session_id,
+                        idx=i,
+                        data=p,
+                        status="waiting",
+                        note="",
+                    ))
+                await db.commit()
+        except Exception:
+            pass  # Ne pas bloquer la réponse si la DB est indisponible
+
+    return {"icp": icp, "prospects": prospects, "session_id": session_id}
+
+
+@app.get("/api/sessions")
+async def get_sessions():
+    """Retourne toutes les sessions avec leurs prospects — pour Historique et Campagnes."""
+    if not AsyncSessionLocal:
+        return []
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(DBSession)
+            .options(selectinload(DBSession.prospects))
+            .order_by(DBSession.ts.desc())
+        )
+        sessions = result.scalars().all()
+        return [
+            {
+                "id": s.id,
+                "date": s.date_fr,
+                "ts": s.ts,
+                "service": s.service,
+                "region": s.region,
+                "icp": s.icp,
+                "campaign_name": s.campaign_name,
+                "prospects": [
+                    {**p.data, "status": p.status, "note": p.note}
+                    for p in s.prospects
+                ],
+            }
+            for s in sessions
+        ]
+
+
+@app.patch("/api/sessions/{session_id}/prospects/{idx}/status")
+async def update_prospect_status(session_id: str, idx: int, req: StatusUpdateRequest):
+    """Met à jour le statut d'un prospect (cycle ou valeur directe)."""
+    if not AsyncSessionLocal:
+        raise HTTPException(status_code=503, detail="Base de données non configurée.")
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(DBProspect).where(
+                DBProspect.session_id == session_id,
+                DBProspect.idx == idx,
+            )
+        )
+        prospect = result.scalar_one_or_none()
+        if not prospect:
+            raise HTTPException(status_code=404, detail="Prospect non trouvé.")
+
+        if req.action == "cycle":
+            cur = prospect.status or "waiting"
+            next_idx = (STATUS_ORDER.index(cur) + 1) % len(STATUS_ORDER) if cur in STATUS_ORDER else 0
+            prospect.status = STATUS_ORDER[next_idx]
+        elif req.status and req.status in STATUS_ORDER:
+            prospect.status = req.status
+
+        await db.commit()
+        return {"status": prospect.status}
 
 
 @app.post("/api/generate-email")
 async def generate_email_endpoint(req: GenerateEmailRequest):
-    """Génère un cold email personnalisé pour un prospect via Claude Haiku."""
     if not req.service_description.strip():
         raise HTTPException(status_code=400, detail="Description du service requise.")
     try:
@@ -283,7 +377,6 @@ async def generate_email_endpoint(req: GenerateEmailRequest):
 
 @app.post("/api/send-email")
 async def send_email_endpoint(req: SendEmailRequest):
-    """Envoie un email via Gmail SMTP (app password)."""
     if not GMAIL_EMAIL or not GMAIL_APP_PASSWORD:
         raise HTTPException(
             status_code=500,
