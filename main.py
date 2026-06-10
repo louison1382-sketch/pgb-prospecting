@@ -27,6 +27,7 @@ ALLOWED_EMAILS: set[str] = {
     for e in os.getenv("ALLOWED_EMAILS", "").split(",")
     if e.strip()
 }
+AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "")
 AUTH_SECRET = os.getenv("AUTH_SECRET", "pgb-prospecting-secret")
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 RESEND_FROM = os.getenv("RESEND_FROM", "PGB Prospecting <onboarding@resend.dev>")
@@ -37,10 +38,27 @@ RAILWAY_URL = os.getenv("RAILWAY_URL", "https://pgb-prospecting.up.railway.app")
 MAGIC_LINK_TOKENS: dict[str, dict] = {}  # {token: {email, expires}}
 TOKEN_TTL = 900  # 15 minutes
 
+# Auth active si au moins un des deux mécanismes est configuré
+AUTH_ENABLED = bool(ALLOWED_EMAILS or AUTH_PASSWORD)
 
-def _make_session_token(email: str) -> str:
-    """Token de session déterministe par email — survit aux redéploiements."""
-    return hashlib.sha256(f"{email.lower()}:{AUTH_SECRET}".encode()).hexdigest()
+
+def _make_session_token(seed: str) -> str:
+    """Token de session déterministe — survit aux redéploiements."""
+    return hashlib.sha256(f"{seed}:{AUTH_SECRET}".encode()).hexdigest()
+
+
+def _valid_session(session_token: str | None) -> bool:
+    """Vérifie si le cookie de session est valide (email ou mot de passe)."""
+    if not session_token:
+        return False
+    # Vérifie contre chaque email autorisé
+    for email in ALLOWED_EMAILS:
+        if secrets.compare_digest(session_token, _make_session_token(email)):
+            return True
+    # Vérifie contre le mot de passe partagé
+    if AUTH_PASSWORD and secrets.compare_digest(session_token, _make_session_token(AUTH_PASSWORD)):
+        return True
+    return False
 
 
 async def _send_magic_link(to_email: str, token: str) -> None:
@@ -87,19 +105,14 @@ app.add_middleware(
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
-    """Protège toutes les routes sauf /login, /api/magic-link, /api/verify.
-    Si ALLOWED_EMAILS n'est pas défini (dev local), laisse tout passer.
+    """Protège toutes les routes sauf /login et les routes d'auth publiques.
+    Si aucun mécanisme d'auth n'est configuré (dev local), laisse tout passer.
     """
-    public_paths = {"/login", "/api/magic-link", "/api/verify"}
-    if request.url.path in public_paths or not ALLOWED_EMAILS:
+    public_paths = {"/login", "/api/magic-link", "/api/verify", "/api/login"}
+    if request.url.path in public_paths or not AUTH_ENABLED:
         return await call_next(request)
 
-    session_token = request.cookies.get("pgb_session")
-    valid = session_token and any(
-        secrets.compare_digest(session_token, _make_session_token(e))
-        for e in ALLOWED_EMAILS
-    )
-    if not valid:
+    if not _valid_session(request.cookies.get("pgb_session")):
         if request.url.path.startswith("/api/"):
             return JSONResponse(status_code=401, content={"detail": "Non authentifié"})
         return RedirectResponse(url="/login")
@@ -108,6 +121,10 @@ async def auth_middleware(request: Request, call_next):
 
 
 # ── Request models ────────────────────────────────────────────────────────────
+
+class LoginRequest(BaseModel):
+    password: str
+
 
 class MagicLinkRequest(BaseModel):
     email: str = Field(min_length=3, max_length=200)
@@ -138,6 +155,25 @@ async def login_page():
     return FileResponse("login.html")
 
 
+@app.post("/api/login")
+async def api_login(req: LoginRequest):
+    """Authentification par mot de passe partagé."""
+    if not AUTH_PASSWORD:
+        raise HTTPException(status_code=404, detail="Not found")
+    if not secrets.compare_digest(req.password, AUTH_PASSWORD):
+        raise HTTPException(status_code=401, detail="Mot de passe incorrect.")
+    redirect = RedirectResponse(url="/")
+    redirect.set_cookie(
+        key="pgb_session",
+        value=_make_session_token(AUTH_PASSWORD),
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=30 * 24 * 3600,
+    )
+    return redirect
+
+
 @app.post("/api/magic-link")
 async def request_magic_link(req: MagicLinkRequest):
     """Envoie un magic link si l'email est dans la whitelist.
@@ -150,7 +186,7 @@ async def request_magic_link(req: MagicLinkRequest):
         try:
             await _send_magic_link(email, token)
         except Exception:
-            pass  # Silent fail — ne pas révéler l'erreur
+            pass
     return {"success": True}
 
 
@@ -161,8 +197,6 @@ async def verify_magic_link(token: str):
     if not entry or time.time() > entry["expires"]:
         return RedirectResponse(url="/login?error=expired")
 
-    # Cookie posé directement sur la RedirectResponse (pas sur le param response)
-    # samesite=lax requis pour que le cookie soit envoyé après la redirection email→app
     redirect = RedirectResponse(url="/")
     redirect.set_cookie(
         key="pgb_session",
@@ -170,7 +204,7 @@ async def verify_magic_link(token: str):
         httponly=True,
         secure=True,
         samesite="lax",
-        max_age=30 * 24 * 3600,  # 30 jours
+        max_age=30 * 24 * 3600,
     )
     return redirect
 
