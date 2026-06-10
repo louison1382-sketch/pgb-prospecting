@@ -1,7 +1,8 @@
-# icp.py — Génération d'ICP via Claude API
+# icp.py — Génération d'ICP via Claude API (avec cache en mémoire)
 # Structure ICP : Claude Haiku (rapide, pas de raisonnement complexe requis)
 # Proof stats    : Claude Sonnet (meilleure fiabilité sur les citations factuelles)
 
+import hashlib
 import json
 import os
 import anthropic
@@ -10,6 +11,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+# Cache en mémoire — évite de rebrûler des crédits sur les mêmes tests
+# Reset au redémarrage Railway (acceptable pour 3 utilisateurs internes)
+_icp_cache: dict[str, dict] = {}
 
 # ── PROMPT 1 — Structure ICP (Haiku) ────────────────────────────────────────
 
@@ -94,8 +99,8 @@ Format JSON :
 }}
 
 Guidelines :
-- Les stats sont issues de la connaissance générale du modèle (pas d'accès web temps réel) — elles sont illustratives
-- Cite des sources crédibles et plausibles (Gartner, McKinsey, Bpifrance, INSEE, Forrester, etc.) mais sans garantie de vérification
+- Les stats sont issues de la connaissance générale du modèle (sans accès web temps réel) — elles sont illustratives
+- Cite des sources crédibles et plausibles (Gartner, McKinsey, Bpifrance, INSEE, Forrester, etc.)
 - Chiffres précis, pas de fourchettes vagues
 - reasoning : paragraphe court, affirmatif, sans jargon
 
@@ -112,10 +117,12 @@ PROOF_DISCLAIMER = (
 
 def generate_icp(product_description: str) -> dict:
     """
-    Génère un ICP complet en deux appels :
-    - Haiku  : structure ICP (sectors, titles, company_profile, etc.)
-    - Sonnet : proof stats + reasoning (meilleure fiabilité sur les citations)
+    Génère un ICP complet en deux appels Claude.
+    Résultat mis en cache (hashlib.md5) pour éviter de rebrûler des crédits sur les mêmes tests.
     """
+    cache_key = hashlib.md5(product_description.strip().lower().encode()).hexdigest()
+    if cache_key in _icp_cache:
+        return _icp_cache[cache_key]
 
     # Appel 1 — Haiku pour la structure
     structure_msg = client.messages.create(
@@ -151,6 +158,7 @@ def generate_icp(product_description: str) -> dict:
     icp["reasoning"] = proof_data.get("reasoning", "")
     icp["proof_disclaimer"] = PROOF_DISCLAIMER
 
+    _icp_cache[cache_key] = icp
     return icp
 
 
