@@ -63,5 +63,9 @@ async def init_db() -> None:
     """Crée les tables si elles n'existent pas. No-op si DATABASE_URL n'est pas défini."""
     if not engine:
         return
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        print("✓ Database tables ready")
+    except Exception as e:
+        print(f"WARNING: DB unavailable at startup ({e}) — running without persistence")
