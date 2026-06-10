@@ -1,5 +1,5 @@
 # prospecting.py — Sourcing via Explorium API + enrichissement score/arguments via Claude
-# Pipeline : fetch prospects (ICP filters) → bulk enrich contacts (emails) → score + args (Claude Haiku)
+# Pipeline : fetch prospects (ICP filters) → bulk enrich contacts (emails vérifiés) → score Python + args Claude Haiku
 
 import os
 import json
@@ -75,8 +75,57 @@ def _standardize_intent_topics(signals: list[str]) -> list[str]:
     return result
 
 
+def _calculate_score(prospect: dict, icp: dict) -> int:
+    """Score de matching ICP calculé en Python. Reproductible et explicable.
+
+    Pondération :
+    - Titre de poste  40 pts (match fort=40, match partiel=20)
+    - Secteur         30 pts (match fort=30, match partiel=15)
+    - Taille          20 pts (match exact=20, taille présente=10)
+    - Email vérifié   10 pts
+    """
+    score = 0
+
+    # Titre (40 pts)
+    job_titles_icp = [t.lower() for t in icp.get("job_titles", [])]
+    poste = (prospect.get("Poste") or "").lower()
+    if poste and any(t in poste or poste in t for t in job_titles_icp):
+        score += 40
+    elif poste and any(
+        any(word in poste for word in t.split() if len(word) > 3)
+        for t in job_titles_icp
+    ):
+        score += 20
+
+    # Secteur (30 pts)
+    sectors_icp = [s.lower() for s in icp.get("sectors", [])]
+    secteur = (prospect.get("Secteur") or "").lower()
+    if secteur and any(s in secteur or secteur in s for s in sectors_icp):
+        score += 30
+    elif secteur and any(
+        any(word in secteur for word in s.split() if len(word) > 3)
+        for s in sectors_icp
+    ):
+        score += 15
+
+    # Taille (20 pts)
+    sizes_icp = icp.get("company_size", [])
+    taille = prospect.get("Taille") or ""
+    if taille and any(s in taille or taille in s for s in sizes_icp):
+        score += 20
+    elif taille:
+        score += 10
+
+    # Email vérifié (10 pts)
+    email = prospect.get("Email") or ""
+    if email and "@" in email:
+        score += 10
+
+    return min(score, 100)
+
+
 def enrich_prospects_with_arguments(prospects: list, icp: dict) -> list:
-    """Ajoute score de matching et 3 arguments sourcés à chaque prospect via Claude Haiku."""
+    """Ajoute score Python reproductible + 3 arguments sourcés à chaque prospect via Claude Haiku."""
     if not prospects:
         return prospects
 
@@ -102,18 +151,18 @@ ICP cible :
 - Secteurs : {', '.join(icp.get('sectors', []))}
 - Signaux d'achat : {', '.join(icp.get('intent_signals', []))}
 
-Pour chaque prospect, génère un score de matching ICP (0–100) et 3 arguments concrets.
+Pour chaque prospect, génère 3 arguments concrets et personnalisés expliquant pourquoi il matche l'ICP.
 
 Prospects :
 {json.dumps(prospect_data, ensure_ascii=False)}
 
 Réponds UNIQUEMENT avec un JSON array dans le même ordre :
-[{{"score": 94, "arguments": [{{"text": "Argument précis basé sur les données du prospect", "source_label": "LinkedIn", "source_url": "https://linkedin.com/..."}}, {{"text": "...", "source_label": "Crunchbase", "source_url": "https://crunchbase.com/..."}}, {{"text": "...", "source_label": "Site", "source_url": "https://..."}}]}}]
+[{{"arguments": [{{"text": "Argument précis basé sur les données du prospect", "source_label": "LinkedIn", "source_url": "https://linkedin.com/in/..."}}, {{"text": "...", "source_label": "Site entreprise", "source_url": "https://..."}}, {{"text": "...", "source_label": null, "source_url": null}}]}}]
 
 Règles :
-- Score : titre (40%) + secteur (30%) + taille (20%) + signaux (10%)
 - Arguments : spécifiques à ce prospect (titre, secteur, taille, ville), jamais génériques
-- source_url : utilise linkedin/website des données si dispo, sinon URL plausible
+- source_url : utilise les champs linkedin/website fournis si disponibles, sinon null — ne jamais inventer une URL
+- source_label : "LinkedIn", "Site entreprise", ou null si aucune source réelle disponible
 - Exactement 3 arguments par prospect
 - UNIQUEMENT le JSON, sans markdown"""
 
@@ -134,12 +183,15 @@ Règles :
     try:
         enriched = json.loads(raw)
         for i, prospect in enumerate(prospects):
+            # Score calculé en Python — reproductible, pas généré par le LLM
+            prospect["score"] = _calculate_score(prospect, icp)
             if i < len(enriched):
-                prospect["score"] = enriched[i].get("score", 70)
                 prospect["arguments"] = enriched[i].get("arguments", [])
+            else:
+                prospect.setdefault("arguments", [])
     except (json.JSONDecodeError, IndexError):
         for p in prospects:
-            p.setdefault("score", 70)
+            p["score"] = _calculate_score(p, icp)
             p.setdefault("arguments", [])
 
     return prospects
@@ -152,8 +204,8 @@ def search_prospects(icp: dict, country: str = "France", num_results: int = 15) 
     Pipeline :
     1. Autocomplete job_titles + intent_topics → valeurs standardisées Explorium
     2. POST /v1/prospects → liste de prospects (avec prospect_id)
-    3. POST /v1/prospects/contacts_information/bulk_enrich → emails
-    4. Enrich avec Claude Haiku → score + 3 arguments par prospect
+    3. POST /v1/prospects/contacts_information/bulk_enrich → emails (guessés filtrés)
+    4. Score Python reproductible + arguments Claude Haiku
     """
     if not EXPLORIUM_API_KEY:
         raise ValueError(
@@ -186,7 +238,6 @@ def search_prospects(icp: dict, country: str = "France", num_results: int = 15) 
     if job_titles:
         filters["job_title"] = {"values": job_titles}
 
-    # Utilise job_level comme filet de sécurité si les titres sont peu précis
     departments = icp.get("job_departments", [])
     if departments:
         filters["job_department"] = {"values": departments}
@@ -226,7 +277,8 @@ def search_prospects(icp: dict, country: str = "France", num_results: int = 15) 
 
     prospect_ids = [p["prospect_id"] for p in raw_prospects if p.get("prospect_id")]
 
-    # ── 3. Bulk enrich contacts (emails) ────────────────────────────────────
+    # ── 3. Bulk enrich contacts — filtre les emails guessés ─────────────────
+    # Les emails guessés ont un bounce rate de 20-40% → classent la boîte en spam
     enrich_payload = {
         "prospect_ids": prospect_ids,
         "parameters": {"contact_types": ["email"]},
@@ -247,7 +299,10 @@ def search_prospects(icp: dict, country: str = "France", num_results: int = 15) 
             pid = ep.get("prospect_id")
             emails = ep.get("emails") or []
             if pid and emails:
-                email_map[pid] = emails[0].get("email", "")
+                # Ne garder que les emails non-guessés
+                verified = [e for e in emails if e.get("type", "").lower() != "guessed"]
+                if verified:
+                    email_map[pid] = verified[0].get("email", "")
 
     # ── 4. Normalisation en format interne ──────────────────────────────────
     prospects = []
@@ -260,13 +315,13 @@ def search_prospects(icp: dict, country: str = "France", num_results: int = 15) 
             "Entreprise": org.get("name") or p.get("company_name", ""),
             "Secteur":    org.get("industry") or p.get("industry", ""),
             "Taille":     org.get("number_of_employees_range") or p.get("company_size", ""),
-            "Email":      email_map.get(pid, p.get("email", "")),
+            "Email":      email_map.get(pid, ""),  # vide si email guessé ou absent
             "LinkedIn":   p.get("linkedin_url", ""),
             "Website":    org.get("website") or p.get("company_website", ""),
             "Ville":      p.get("city") or p.get("city_name", ""),
         })
 
-    # ── 5. Score + arguments (Claude Haiku) ─────────────────────────────────
+    # ── 5. Score Python + arguments Claude Haiku ─────────────────────────────
     prospects = enrich_prospects_with_arguments(prospects, icp)
     prospects.sort(key=lambda p: p.get("score", 0), reverse=True)
 
