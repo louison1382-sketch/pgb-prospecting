@@ -1,6 +1,5 @@
 """Tests unitaires pour prospecting.py — fonctions pures, pas d'appels API."""
 
-import pytest
 from prospecting import _calculate_score, REGION_MAP, SIZE_MAP
 
 
@@ -76,7 +75,6 @@ def test_score_partial_title_match():
     prospect = {"Poste": "Directeur des Opérations", "Secteur": "", "Taille": "", "Email": ""}
     icp = {"job_titles": ["Directeur Général"], "sectors": [], "company_size": []}
     score = _calculate_score(prospect, icp)
-    # "directeur" (> 3 chars) matches → partial = 20
     assert score == 20
 
 
@@ -84,13 +82,13 @@ def test_score_sector_partial_match():
     prospect = {"Poste": "", "Secteur": "Services numériques B2B", "Taille": "", "Email": ""}
     icp = {"job_titles": [], "sectors": ["Services B2B"], "company_size": []}
     score = _calculate_score(prospect, icp)
-    assert score >= 15  # at least partial match
+    assert score >= 15
 
 
 def test_score_size_present_but_no_match():
     prospect = {"Poste": "", "Secteur": "", "Taille": "201-500", "Email": ""}
     icp = {"job_titles": [], "sectors": [], "company_size": ["11-50"]}
-    assert _calculate_score(prospect, icp) == 10  # taille présente mais no match exact
+    assert _calculate_score(prospect, icp) == 10
 
 
 def test_score_never_exceeds_100():
@@ -116,5 +114,4 @@ def test_score_empty_icp():
         "Email": "ceo@company.fr",
     }
     icp = {"job_titles": [], "sectors": [], "company_size": []}
-    # Only email verified = 10
     assert _calculate_score(prospect, icp) == 10
