@@ -88,7 +88,7 @@ def test_score_sector_partial_match():
 def test_score_size_present_but_no_match():
     prospect = {"Poste": "", "Secteur": "", "Taille": "201-500", "Email": ""}
     icp = {"job_titles": [], "sectors": [], "company_size": ["11-50"]}
-    assert _calculate_score(prospect, icp) == 10
+    assert _calculate_score(prospect, icp) == 10  # taille présente mais no match exact
 
 
 def test_score_never_exceeds_100():
@@ -107,6 +107,8 @@ def test_score_never_exceeds_100():
 
 
 def test_score_empty_icp():
+    # ICP vide : pas de titres/secteurs/tailles à matcher
+    # Score = taille présente (10) + email vérifié (10) = 20
     prospect = {
         "Poste": "CEO",
         "Secteur": "Tech",
@@ -114,4 +116,4 @@ def test_score_empty_icp():
         "Email": "ceo@company.fr",
     }
     icp = {"job_titles": [], "sectors": [], "company_size": []}
-    assert _calculate_score(prospect, icp) == 10
+    assert _calculate_score(prospect, icp) == 20
