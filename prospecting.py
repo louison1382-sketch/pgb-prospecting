@@ -1,10 +1,12 @@
 # prospecting.py — Sourcing via Explorium API + enrichissement score/arguments via Claude
-# Pipeline : fetch prospects (ICP filters) → bulk enrich contacts (emails vérifiés) → score Python + args Claude Haiku
+# Pipeline : fetch prospects → bulk enrich emails (vérifiés) → score Python + args Claude Haiku (async)
 
-import os
+import asyncio
 import json
-import requests
-import anthropic
+import os
+
+import httpx
+from anthropic import AsyncAnthropic
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,7 +14,7 @@ load_dotenv()
 EXPLORIUM_API_KEY = os.getenv("EXPLORIUM_API_KEY")
 EXPLORIUM_BASE_URL = "https://api.explorium.ai/v1"
 
-claude = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+claude = AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 REGION_MAP = {
     "Europe":                ["FR", "BE", "CH", "DE", "GB", "NL", "ES", "IT", "PT",
@@ -41,13 +43,12 @@ def _headers() -> dict:
     }
 
 
-def _autocomplete(field: str, query: str) -> str | None:
+async def _autocomplete(client: httpx.AsyncClient, field: str, query: str) -> str | None:
     """Returns the first standardized value from Explorium autocomplete, or None."""
     try:
-        r = requests.get(
+        r = await client.get(
             f"{EXPLORIUM_BASE_URL}/prospects/autocomplete",
             params={"field": field, "query": query, "semantic_search": "false"},
-            headers=_headers(),
             timeout=10,
         )
         items = r.json()
@@ -56,23 +57,18 @@ def _autocomplete(field: str, query: str) -> str | None:
         return None
 
 
-def _standardize_job_titles(titles: list[str]) -> list[str]:
-    """Standardize job titles via autocomplete. Falls back to raw value if no match."""
-    result = []
-    for title in titles[:5]:  # limit to 5 to avoid latency
-        val = _autocomplete("job_title", title)
-        result.append(val if val else title)
-    return result
+async def _standardize_job_titles(client: httpx.AsyncClient, titles: list[str]) -> list[str]:
+    """Standardize job titles via autocomplete — appels en parallèle."""
+    tasks = [_autocomplete(client, "job_title", t) for t in titles[:5]]
+    results = await asyncio.gather(*tasks)
+    return [val if val else titles[i] for i, val in enumerate(results)]
 
 
-def _standardize_intent_topics(signals: list[str]) -> list[str]:
-    """Standardize intent topics via autocomplete."""
-    result = []
-    for signal in signals[:3]:
-        val = _autocomplete("business_intent_topics", signal)
-        if val:
-            result.append(val)
-    return result
+async def _standardize_intent_topics(client: httpx.AsyncClient, signals: list[str]) -> list[str]:
+    """Standardize intent topics via autocomplete — appels en parallèle."""
+    tasks = [_autocomplete(client, "business_intent_topics", s) for s in signals[:3]]
+    results = await asyncio.gather(*tasks)
+    return [val for val in results if val]
 
 
 def _calculate_score(prospect: dict, icp: dict) -> int:
@@ -124,8 +120,8 @@ def _calculate_score(prospect: dict, icp: dict) -> int:
     return min(score, 100)
 
 
-def enrich_prospects_with_arguments(prospects: list, icp: dict) -> list:
-    """Ajoute score Python reproductible + 3 arguments sourcés à chaque prospect via Claude Haiku."""
+async def enrich_prospects_with_arguments(prospects: list, icp: dict) -> list:
+    """Ajoute score Python reproductible + 3 arguments sourcés via Claude Haiku (async)."""
     if not prospects:
         return prospects
 
@@ -166,7 +162,7 @@ Règles :
 - Exactement 3 arguments par prospect
 - UNIQUEMENT le JSON, sans markdown"""
 
-    message = claude.messages.create(
+    message = await claude.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=4096,
         messages=[{"role": "user", "content": prompt}]
@@ -183,7 +179,6 @@ Règles :
     try:
         enriched = json.loads(raw)
         for i, prospect in enumerate(prospects):
-            # Score calculé en Python — reproductible, pas généré par le LLM
             prospect["score"] = _calculate_score(prospect, icp)
             if i < len(enriched):
                 prospect["arguments"] = enriched[i].get("arguments", [])
@@ -197,15 +192,15 @@ Règles :
     return prospects
 
 
-def search_prospects(icp: dict, country: str = "France", num_results: int = 15) -> list:
+async def search_prospects(icp: dict, country: str = "France", num_results: int = 15) -> list:
     """
     Recherche des prospects via Explorium API et les enrichit avec score + arguments.
 
     Pipeline :
-    1. Autocomplete job_titles + intent_topics → valeurs standardisées Explorium
-    2. POST /v1/prospects → liste de prospects (avec prospect_id)
+    1. Autocomplete job_titles + intent_topics en parallèle (asyncio.gather)
+    2. POST /v1/prospects → liste de prospects
     3. POST /v1/prospects/contacts_information/bulk_enrich → emails (guessés filtrés)
-    4. Score Python reproductible + arguments Claude Haiku
+    4. Score Python reproductible + arguments Claude Haiku (async)
     """
     if not EXPLORIUM_API_KEY:
         raise ValueError(
@@ -213,96 +208,69 @@ def search_prospects(icp: dict, country: str = "France", num_results: int = 15) 
             "Ajoute-la dans les variables d'environnement Railway."
         )
 
-    # ── 1. Standardisation des filtres ──────────────────────────────────────
-    job_titles_raw = icp.get("job_titles", [])
-    job_titles = _standardize_job_titles(job_titles_raw)
-
-    intent_signals_raw = icp.get("intent_signals", [])
-    intent_topics = _standardize_intent_topics(intent_signals_raw)
-
-    # Géographie
-    if country == "France":
-        country_codes = ["FR"]
-    else:
-        country_codes = REGION_MAP.get(country, ["FR"])
-
-    # Taille d'entreprise
-    sizes_raw = icp.get("company_size", ["11-50", "51-200"])
-    sizes = [SIZE_MAP[s] for s in sizes_raw if s in SIZE_MAP]
-
-    # ── 2. Fetch prospects ───────────────────────────────────────────────────
-    filters: dict = {
-        "has_email": True,
-    }
-
-    if job_titles:
-        filters["job_title"] = {"values": job_titles}
-
-    departments = icp.get("job_departments", [])
-    if departments:
-        filters["job_department"] = {"values": departments}
-
-    if sizes:
-        filters["company_size"] = {"values": sizes}
-
-    if country_codes:
-        filters["company_country_code"] = {"values": country_codes}
-
-    if intent_topics:
-        filters["business_intent_topics"] = {"values": intent_topics}
-
-    fetch_payload = {
-        "filters": filters,
-        "number_of_results": num_results,
-        "mode": "full",
-    }
-
-    fetch_resp = requests.post(
-        f"{EXPLORIUM_BASE_URL}/prospects",
-        json=fetch_payload,
-        headers=_headers(),
-        timeout=30,
-    )
-
-    if fetch_resp.status_code != 200:
-        raise Exception(
-            f"Erreur Explorium fetch {fetch_resp.status_code} : {fetch_resp.text[:300]}"
+    async with httpx.AsyncClient(headers=_headers()) as client:
+        # ── 1. Standardisation des filtres (parallèle) ──────────────────────
+        job_titles, intent_topics = await asyncio.gather(
+            _standardize_job_titles(client, icp.get("job_titles", [])),
+            _standardize_intent_topics(client, icp.get("intent_signals", [])),
         )
 
-    fetch_data = fetch_resp.json()
-    raw_prospects = fetch_data.get("prospects", fetch_data.get("data", []))
+        # Géographie
+        country_codes = ["FR"] if country == "France" else REGION_MAP.get(country, ["FR"])
 
-    if not raw_prospects:
-        return []
+        # Taille d'entreprise
+        sizes = [SIZE_MAP[s] for s in icp.get("company_size", ["11-50", "51-200"]) if s in SIZE_MAP]
 
-    prospect_ids = [p["prospect_id"] for p in raw_prospects if p.get("prospect_id")]
+        # ── 2. Fetch prospects ───────────────────────────────────────────────
+        filters: dict = {"has_email": True}
+        if job_titles:
+            filters["job_title"] = {"values": job_titles}
+        departments = icp.get("job_departments", [])
+        if departments:
+            filters["job_department"] = {"values": departments}
+        if sizes:
+            filters["company_size"] = {"values": sizes}
+        if country_codes:
+            filters["company_country_code"] = {"values": country_codes}
+        if intent_topics:
+            filters["business_intent_topics"] = {"values": intent_topics}
 
-    # ── 3. Bulk enrich contacts — filtre les emails guessés ─────────────────
-    # Les emails guessés ont un bounce rate de 20-40% → classent la boîte en spam
-    enrich_payload = {
-        "prospect_ids": prospect_ids,
-        "parameters": {"contact_types": ["email"]},
-    }
+        fetch_resp = await client.post(
+            f"{EXPLORIUM_BASE_URL}/prospects",
+            json={"filters": filters, "number_of_results": num_results, "mode": "full"},
+            timeout=30,
+        )
 
-    enrich_resp = requests.post(
-        f"{EXPLORIUM_BASE_URL}/prospects/contacts_information/bulk_enrich",
-        json=enrich_payload,
-        headers=_headers(),
-        timeout=30,
-    )
+        if fetch_resp.status_code != 200:
+            raise Exception(
+                f"Erreur Explorium fetch {fetch_resp.status_code} : {fetch_resp.text[:300]}"
+            )
 
-    email_map: dict[str, str] = {}
-    if enrich_resp.status_code == 200:
-        enrich_data = enrich_resp.json()
-        enriched_list = enrich_data.get("prospects", enrich_data.get("data", []))
-        for ep in enriched_list:
-            pid = ep.get("prospect_id")
-            emails = ep.get("emails") or []
-            if pid and emails:
-                # Ne garder que les emails non-guessés
-                verified = [e for e in emails if e.get("type", "").lower() != "guessed"]
-                if verified:
-                    email_map[pid] = verified[0].get("email", "")
+        fetch_data = fetch_resp.json()
+        raw_prospects = fetch_data.get("prospects", fetch_data.get("data", []))
+
+        if not raw_prospects:
+            return []
+
+        prospect_ids = [p["prospect_id"] for p in raw_prospects if p.get("prospect_id")]
+
+        # ── 3. Bulk enrich contacts — filtre les emails guessés ─────────────
+        # Les emails guessés ont un bounce rate de 20-40% → classent la boîte en spam
+        enrich_resp = await client.post(
+            f"{EXPLORIUM_BASE_URL}/prospects/contacts_information/bulk_enrich",
+            json={"prospect_ids": prospect_ids, "parameters": {"contact_types": ["email"]}},
+            timeout=30,
+        )
+
+        email_map: dict[str, str] = {}
+        if enrich_resp.status_code == 200:
+            for ep in enrich_resp.json().get("prospects", enrich_resp.json().get("data", [])):
+                pid = ep.get("prospect_id")
+                emails = ep.get("emails") or []
+                if pid and emails:
+                    verified = [e for e in emails if e.get("type", "").lower() != "guessed"]
+                    if verified:
+                        email_map[pid] = verified[0].get("email", "")
 
     # ── 4. Normalisation en format interne ──────────────────────────────────
     prospects = []
@@ -322,7 +290,7 @@ def search_prospects(icp: dict, country: str = "France", num_results: int = 15) 
         })
 
     # ── 5. Score Python + arguments Claude Haiku ─────────────────────────────
-    prospects = enrich_prospects_with_arguments(prospects, icp)
+    prospects = await enrich_prospects_with_arguments(prospects, icp)
     prospects.sort(key=lambda p: p.get("score", 0), reverse=True)
 
     return prospects
