@@ -9,20 +9,25 @@ from email.mime.multipart import MIMEMultipart
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Any
 
 from icp import generate_icp
 from prospecting import search_prospects
 from email_gen import generate_cold_email
 
-app = FastAPI(title="PGB Prospecting")
+app = FastAPI(
+    title="PGB Prospecting",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["https://pgb-prospecting.up.railway.app"],
+    allow_methods=["POST", "GET"],
+    allow_headers=["Content-Type"],
 )
 
 GMAIL_EMAIL = os.getenv("GMAIL_EMAIL")
@@ -32,9 +37,9 @@ GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
 # ── Request models ────────────────────────────────────────────────────────────
 
 class GenerateRequest(BaseModel):
-    product_description: str
-    country: str = "France"
-    num_results: int = 15
+    product_description: str = Field(min_length=20, max_length=5000)
+    country: str = Field(default="France", max_length=50)
+    num_results: int = Field(default=15, ge=5, le=30)
 
 
 class GenerateEmailRequest(BaseModel):
