@@ -155,21 +155,24 @@ async def request_magic_link(req: MagicLinkRequest):
 
 
 @app.get("/api/verify")
-async def verify_magic_link(token: str, response: Response):
+async def verify_magic_link(token: str):
     """Valide le magic link, pose le cookie de session, redirige vers /."""
     entry = MAGIC_LINK_TOKENS.pop(token, None)
     if not entry or time.time() > entry["expires"]:
         return RedirectResponse(url="/login?error=expired")
 
-    response.set_cookie(
+    # Cookie posé directement sur la RedirectResponse (pas sur le param response)
+    # samesite=lax requis pour que le cookie soit envoyé après la redirection email→app
+    redirect = RedirectResponse(url="/")
+    redirect.set_cookie(
         key="pgb_session",
         value=_make_session_token(entry["email"]),
         httponly=True,
         secure=True,
-        samesite="strict",
+        samesite="lax",
         max_age=30 * 24 * 3600,  # 30 jours
     )
-    return RedirectResponse(url="/")
+    return redirect
 
 
 @app.post("/api/logout")
@@ -235,7 +238,7 @@ async def generate(req: GenerateRequest):
 @app.post("/api/generate-email")
 async def generate_email_endpoint(req: GenerateEmailRequest):
     """Génère un cold email personnalisé pour un prospect via Claude Haiku."""
-    if not req.service_description.strip():  
+    if not req.service_description.strip():
         raise HTTPException(status_code=400, detail="Description du service requise.")
     try:
         result = generate_cold_email(req.prospect, req.icp, req.service_description)
