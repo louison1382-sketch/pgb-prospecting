@@ -35,6 +35,17 @@ SIZE_MAP = {
     "500+":    "501-1000",
 }
 
+# Catégories valides pour le filtre job_department de l'API Explorium
+# (toute autre valeur provoque une erreur 422 "value is not a valid enumeration member")
+VALID_JOB_DEPARTMENTS = {
+    "administration", "real estate", "healthcare", "partnerships", "c-suite",
+    "design", "human resources", "engineering", "education", "strategy",
+    "product", "sales", "r&d", "retail", "customer success", "security",
+    "public service", "creative", "it", "support", "marketing", "trade",
+    "legal", "operations", "procurement", "data", "manufacturing", "logistics",
+    "finance",
+}
+
 
 def _headers() -> dict:
     return {
@@ -42,6 +53,16 @@ def _headers() -> dict:
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
+
+
+def _filter_valid_departments(departments: list[str]) -> list[str]:
+    """Ne garde que les départements reconnus par l'enum Explorium (insensible à la casse)."""
+    valid = []
+    for d in departments:
+        d_norm = (d or "").strip().lower()
+        if d_norm in VALID_JOB_DEPARTMENTS:
+            valid.append(d_norm)
+    return valid
 
 
 async def _autocomplete(client: httpx.AsyncClient, field: str, query: str) -> str | None:
@@ -223,10 +244,10 @@ async def search_prospects(icp: dict, country: str = "France", num_results: int 
         sizes = [SIZE_MAP[s] for s in icp.get("company_size", ["11-50", "51-200"]) if s in SIZE_MAP]
 
         # ── 2. Fetch prospects ───────────────────────────────────────────────
-        filters: dict = {"has_email": True}
+        filters: dict = {"has_email": {"value": True}}
         if job_titles:
             filters["job_title"] = {"values": job_titles}
-        departments = icp.get("job_departments", [])
+        departments = _filter_valid_departments(icp.get("job_departments", []))
         if departments:
             filters["job_department"] = {"values": departments}
         if sizes:
@@ -236,9 +257,17 @@ async def search_prospects(icp: dict, country: str = "France", num_results: int 
         if intent_topics:
             filters["business_intent_topics"] = {"values": intent_topics}
 
+        page_size = max(1, min(num_results, 100))
+
         fetch_resp = await client.post(
             f"{EXPLORIUM_BASE_URL}/prospects",
-            json={"filters": filters, "number_of_results": num_results, "mode": "full"},
+            json={
+                "mode": "full",
+                "size": num_results,
+                "page_size": page_size,
+                "page": 1,
+                "filters": filters,
+            },
             timeout=30,
         )
 
