@@ -1,0 +1,275 @@
+    /* CAMPAIGNS */
+    async function renderCampaigns() {
+        const sessions = await getSessions();
+        const el = document.getElementById('campaignList');
+        if (!sessions.length) {
+            el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">—</div><div class="empty-state-title">Aucune campagne</div><div class="empty-state-sub">Lance ta première recherche pour créer une campagne</div></div>`;
+            return;
+        }
+        el.innerHTML = sessions.map(s => {
+            const counts = { waiting: 0, followup: 0, replied: 0, signed: 0, lost: 0 };
+            (s.prospects || []).forEach(p => { if (counts[p.status] !== undefined) counts[p.status]++; });
+
+            const statsHtml = [
+                { n: counts.signed,  l: 'Signé',    c: '#4ADE80' },
+                { n: counts.replied, l: 'Répondu',  c: 'var(--lime)' },
+                { n: counts.followup,l: 'Relancé',  c: '#FFD166' },
+                { n: counts.waiting, l: 'Attente',  c: '#333' },
+            ].map(st => `<div class="cstat"><div class="cstat-n" style="color:${st.c}">${st.n}</div><div class="cstat-l">${st.l}</div></div>`).join('');
+
+            const rowsHtml = (s.prospects || []).map((p, i) => `
+                <tr>
+                    <td>
+                        <div class="dt-name">${p.Nom || '—'}</div>
+                        <div class="dt-role">${p.Poste || ''}</div>
+                        <div class="dt-co">${p.Entreprise || ''}</div>
+                    </td>
+                    <td>${statusPill(p.status || 'waiting', s.id, i)}</td>
+                    <td><div class="dt-date">${s.date}</div></td>
+                    <td><div style="font-size:.7rem;color:#444">${p.Email || '—'}</div></td>
+                </tr>`).join('');
+
+            return `<div class="campaign-card" onclick="toggleCard(this)">
+                <div class="campaign-hd">
+                    <div class="campaign-meta">
+                        <div class="campaign-name">${s.campaign_name || s.service}</div>
+                        <div class="campaign-sub">Lancée le ${s.date} · ${(s.prospects || []).length} prospects · ${s.region}</div>
+                    </div>
+                    <div class="campaign-stats">${statsHtml}</div>
+                    <div class="campaign-chev">▼</div>
+                </div>
+                <div class="campaign-detail">
+                    <table class="dt">
+                        <thead><tr><th>Contact</th><th>Statut</th><th>Date</th><th>Email</th></tr></thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    /* HISTORY */
+    async function renderHistory() {
+        const sessions = await getSessions();
+        const el = document.getElementById('historyList');
+        if (!sessions.length) {
+            el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">—</div><div class="empty-state-title">Aucune recherche</div><div class="empty-state-sub">Lance ta première recherche pour voir l'historique</div></div>`;
+            return;
+        }
+        el.innerHTML = sessions.map(s => {
+            const icp = s.icp || {};
+            const cp = icp.company_profile || {};
+            const signed = (s.prospects || []).filter(p => p.status === 'signed').length;
+
+            const badgesHtml = [
+                signed ? `<span class="hbadge" style="border-color:rgba(74,222,128,.3);color:#4ADE80;background:rgba(74,222,128,.05)">${signed} signé${signed > 1 ? 's' : ''}</span>` : '',
+                `<span class="hbadge">${(s.prospects || []).length} scraped</span>`,
+            ].filter(Boolean).join('');
+
+            const icpAttrs = [
+                { k: 'Secteur', v: cp.secteur || (icp.sectors || []).slice(0, 2).join(', ') || '—' },
+                { k: 'Taille',  v: cp.taille  || (icp.company_size || []).join(', ') || '—' },
+                { k: 'Signal',  v: cp.signal  || (icp.intent_signals || [''])[0] || '—' },
+                { k: 'Géo', v: cp.geo || s.region || '—' },
+                { k: 'Maturité', v: cp.maturite || '—' },
+                { k: 'Budget',  v: cp.budget  || '—' },
+            ].map(a => `<div class="hattr"><div class="hattr-k">${a.k}</div><div class="hattr-v">${a.v}</div></div>`).join('');
+
+            const topProspects = (s.prospects || []).slice(0, 6).map(p => {
+                const score = p.score || 0;
+                const sc = score >= 80 ? 'hi' : 'md';
+                return `<div class="scraped-item">
+                    <div><div class="scraped-name">${p.Nom || '—'}</div><div class="scraped-role">${p.Poste || ''} · ${p.Entreprise || ''}</div></div>
+                    <div class="scraped-score ${sc}">${score}</div>
+                </div>`;
+            }).join('');
+
+            return `<div class="hcard" onclick="toggleCard(this)">
+                <div class="hcard-hd">
+                    <div class="hcard-date">${s.date}</div>
+                    <div class="hcard-info">
+                        <div class="hcard-title">${s.service.slice(0, 60)}${s.service.length > 60 ? '…' : ''}</div>
+                        <div class="hcard-sub">${s.region} · ${(s.prospects || []).length} prospects</div>
+                    </div>
+                    <div class="hcard-badges">${badgesHtml}</div>
+                    <div class="hcard-chev">▼</div>
+                </div>
+                <div class="hcard-detail">
+                    <div class="hcard-inner">
+                        <div class="hcol">
+                            <div class="hcol-label">ICP généré</div>
+                            <div class="hicp-title">${icp.persona_title || (icp.job_titles || [''])[0] || '—'}</div>
+                            <div class="hicp-attrs">${icpAttrs}</div>
+                        </div>
+                        <div class="hcol">
+                            <div class="hcol-label">Top ${Math.min(6, (s.prospects || []).length)} / ${(s.prospects || []).length} prospects scraped</div>
+                            <div class="scraped-list">${topProspects || '<div style="color:#252525;font-size:.75rem;">Aucun prospect</div>'}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    /* COULISSES — ce que l'IA a cherché et trouvé en arrière-plan */
+    function fmtLogVal(v) {
+        if (v === undefined || v === null || v === '') return '—';
+        if (typeof v === 'string') return v;
+        try { return JSON.stringify(v, null, 2); } catch { return String(v); }
+    }
+
+    async function renderLogs() {
+        const sessions = await getSessions();
+        const el = document.getElementById('logsList');
+        const withLogs = sessions.filter(s => (s.logs || []).length);
+        if (!withLogs.length) {
+            el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">—</div><div class="empty-state-title">Rien à montrer</div><div class="empty-state-sub">Lance une recherche pour voir le détail des étapes effectuées par l'IA</div></div>`;
+            return;
+        }
+        el.innerHTML = withLogs.map((s, si) => {
+            const steps = (s.logs || []).map((log, li) => `
+                <div class="log-step" onclick="toggleLogStep(this, event)">
+                    <div class="log-step-hd">
+                        <div class="log-step-name">${li + 1}. ${log.step || 'Étape'}</div>
+                        <div class="log-step-model">${log.model || ''}</div>
+                    </div>
+                    <div class="log-step-body">
+                        <div class="log-step-block">
+                            <div class="log-step-block-label">Entrée</div>
+                            <div class="log-step-block-content">${fmtLogVal(log.input)}</div>
+                        </div>
+                        <div class="log-step-block">
+                            <div class="log-step-block-label">Sortie</div>
+                            <div class="log-step-block-content">${fmtLogVal(log.output)}</div>
+                        </div>
+                    </div>
+                </div>`).join('');
+
+            return `<div class="hcard" onclick="toggleCard(this)">
+                <div class="hcard-hd">
+                    <div class="hcard-date">${s.date}</div>
+                    <div class="hcard-info">
+                        <div class="hcard-title">${s.service.slice(0, 60)}${s.service.length > 60 ? '…' : ''}</div>
+                        <div class="hcard-sub">${s.region} · ${(s.logs || []).length} étape${(s.logs || []).length > 1 ? 's' : ''}</div>
+                    </div>
+                    <div class="hcard-chev">▼</div>
+                </div>
+                <div class="hcard-detail">
+                    <div class="hcard-inner" style="grid-template-columns: 1fr;">
+                        <div class="hcol">
+                            <div class="hcol-label">Étapes de recherche &amp; génération</div>
+                            ${steps}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function toggleLogStep(el, e) {
+        e.stopPropagation();
+        el.classList.toggle('open');
+    }
+
+    /* EMAIL MODAL */
+    let _emailIdx = -1;
+
+    async function openEmailModal(idx) {
+        _emailIdx = idx;
+        const p = prsp[idx];
+
+        document.getElementById('emTo').value = p.Email || '';
+        document.getElementById('emSubject').value = '';
+        document.getElementById('emBody').value = '';
+        document.getElementById('emStatus').textContent = 'Génération en cours…';
+        document.getElementById('emStatus').className = 'em-status';
+        document.getElementById('emSendBtn').disabled = true;
+        document.getElementById('emailModal').classList.add('open');
+
+        try {
+            const r = await fetch('/api/generate-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prospect: p,
+                    icp: currentIcp,
+                    service_description: currentDesc
+                })
+            });
+            if (!r.ok) { const e = await r.json(); throw new Error(e.detail); }
+            const { subject, body } = await r.json();
+            document.getElementById('emSubject').value = subject || '';
+            document.getElementById('emBody').value = body || '';
+            document.getElementById('emStatus').textContent = 'Email généré — vérifie et envoie.';
+            document.getElementById('emSendBtn').disabled = false;
+        } catch (e) {
+            document.getElementById('emStatus').textContent = 'Erreur : ' + e.message;
+            document.getElementById('emStatus').className = 'em-status err';
+        }
+    }
+
+    function closeEmailModal(e) {
+        if (e && e.target !== document.getElementById('emailModal')) return;
+        document.getElementById('emailModal').classList.remove('open');
+        _emailIdx = -1;
+    }
+
+    async function sendEmail() {
+        const to = document.getElementById('emTo').value.trim();
+        const subject = document.getElementById('emSubject').value.trim();
+        const body = document.getElementById('emBody').value.trim();
+        const btn = document.getElementById('emSendBtn');
+        const status = document.getElementById('emStatus');
+
+        if (!to || !subject || !body) { status.textContent = 'Remplis tous les champs.'; status.className = 'em-status err'; return; }
+
+        btn.disabled = true;
+        status.textContent = 'Envoi en cours…';
+        status.className = 'em-status';
+
+        try {
+            const r = await fetch('/api/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ to, subject, body })
+            });
+            if (!r.ok) { const e = await r.json(); throw new Error(e.detail); }
+            status.textContent = '✓ Email envoyé à ' + to;
+            status.className = 'em-status ok';
+
+            if (_emailIdx >= 0 && currentSessionId) {
+                await fetch(`/api/sessions/${currentSessionId}/prospects/${_emailIdx}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'followup' })
+                });
+            }
+
+            setTimeout(() => { document.getElementById('emailModal').classList.remove('open'); _emailIdx = -1; }, 2200);
+        } catch (e) {
+            status.textContent = 'Erreur : ' + e.message;
+            status.className = 'em-status err';
+            btn.disabled = false;
+        }
+    }
+
+    /* INIT — restaure la vue après un refresh (recherche en cours ou onglet ouvert) */
+    function init() {
+        const state = loadViewState();
+        if (!state) return;
+        if (state.view === 'results' && state.data) {
+            currentDesc = state.desc || '';
+            currentRegion = state.region || '';
+            currentSessionId = state.sessionId || '';
+            if (currentDesc) document.getElementById('productDesc').value = currentDesc;
+            if (currentRegion) document.getElementById('region').value = currentRegion;
+            document.getElementById('heroSection').style.display = 'none';
+            render(state.data);
+        } else if (state.view === 'tab' && state.tab) {
+            showTab(state.tab);
+        }
+    }
+    document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
