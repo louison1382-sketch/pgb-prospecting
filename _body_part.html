@@ -1,0 +1,238 @@
+    </style>
+</head>
+<body>
+
+<div id="cur"></div>
+<div id="aura"></div>
+
+<nav>
+    <div class="W nav-i">
+        <a class="logo" href="#" onclick="goHome(); return false;">
+            <span class="logo-n">Pillet Grenié</span>
+            <span class="logo-b">BUREAU.</span>
+        </a>
+        <div class="nav-links">
+            <a class="nav-link" href="#" id="navCampaigns" onclick="showTab('campaigns'); return false;">Campagnes</a>
+            <a class="nav-link" href="#" id="navHistory" onclick="showTab('history'); return false;">Historique</a>
+            <a class="nav-link" href="#" id="navLogs" onclick="showTab('logs'); return false;">Coulisses</a>
+        </div>
+    </div>
+</nav>
+
+<section class="hero-s" id="heroSection">
+    <div class="W">
+        <p class="mono-tag" id="heroTag">Fiche Produit</p>
+        <h1>Trouve tes<br>prochains<br><em>clients.</em></h1>
+        <p class="hero-sub">Description &rarr; ICP &rarr; Prospects qualifi&eacute;s</p>
+    </div>
+</section>
+
+<div class="steps" id="stepsBar">
+    <div class="steps-inner">
+        <div class="si active" id="step1"><span class="sn">01</span><span class="sl">Fiche produit</span></div>
+        <div class="si" id="step2"><span class="sn">02</span><span class="sl">ICP g&#233;n&#233;r&#233;</span></div>
+        <div class="si" id="step3"><span class="sn">03</span><span class="sl">Prospects</span></div>
+    </div>
+</div>
+
+<section id="formSection">
+    <div class="W">
+        <div class="form-grid">
+            <div class="form-left">
+                <p class="form-eyebrow">01 &mdash; Service</p>
+                <h2 class="form-headline">D&eacute;cris ton<br>service<span class="dot">.</span></h2>
+                <p class="form-desc">Plus ta description est pr&eacute;cise, meilleur sera l&#8217;ICP g&eacute;n&eacute;r&eacute;. Contexte, offre, client id&eacute;al &mdash; tout compte.</p>
+                <div class="fl">
+                    <textarea id="productDesc" rows="7" placeholder="Ex&#x202F;: Agence d&#x2019;int&#xe9;gration — on con&#xe7;oit, construit et connecte des syst&#xe8;mes digitaux."></textarea>
+                </div>
+                <div class="upload-sep"><span>ou importer un fichier</span></div>
+                <div class="upload-z" id="uploadZone">
+                    <div class="upload-lft">
+                        <span class="upload-ic">&uarr;</span>
+                        <div><p class="upload-main">PDF, Markdown ou HTML</p><p class="upload-hint">Texte extrait et inject&eacute; dans la description</p></div>
+                    </div>
+                    <button class="upload-action" onclick="document.getElementById('fi').click()">Choisir</button>
+                    <input type="file" id="fi" accept=".pdf,.md,.txt,.html,.htm" style="display:none">
+                </div>
+                <div class="file-ok" id="fileOk">
+                    <div class="file-ok-l"><div class="file-dot"></div><span class="file-name" id="fileName"></span></div>
+                    <button class="file-rm" onclick="clearFile()">Retirer</button>
+                </div>
+            </div>
+            <div class="form-right">
+                <p class="form-eyebrow">02 &mdash; Param&egrave;tres</p>
+                <h2 class="params-title">Configure<br>la cible<span class="dot">.</span></h2>
+                <div class="fl">
+                    <label class="fl-label" for="region">R&eacute;gion cible</label>
+                    <div class="select-wrap">
+                        <select id="region">
+                            <option>Europe</option>
+                            <option>Moyen-Orient</option>
+                            <option>Asie-Pacifique</option>
+                            <option>US / Canada / Mexique</option>
+                            <option>Am&eacute;rique du Sud</option>
+                            <option>Afrique &amp; Oc&eacute;an Indien</option>
+                        </select>
+                        <span class="select-arrow">&#9660;</span>
+                    </div>
+                </div>
+                <div class="fl">
+                    <label class="fl-label">Volume &mdash; <span id="sv">15</span> prospects</label>
+                    <div class="slider-row">
+                        <input type="range" id="numP" min="5" max="25" value="15" step="5">
+                        <span class="sv" id="svDisplay">15</span>
+                    </div>
+                </div>
+                <div class="cta-wrap">
+                    <button class="btn-p" onclick="generate()">G&eacute;n&eacute;rer ICP + Prospects &rarr;</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div id="errBar" class="err"></div>
+
+<div id="loading">
+    <div class="W">
+        <div class="ls-wrap">
+            <div class="ls" id="ls1"><div class="ls-dot"></div><span class="ls-t">Analyse de la fiche produit</span></div>
+            <div class="ls" id="ls2"><div class="ls-dot"></div><span class="ls-t">G&#233;n&#233;ration de l&#8217;ICP</span></div>
+            <div class="ls" id="ls3"><div class="ls-dot"></div><span class="ls-t">Sourcing des prospects</span></div>
+            <div class="ls" id="ls4"><div class="ls-dot"></div><span class="ls-t">Enrichissement + scoring</span></div>
+        </div>
+    </div>
+</div>
+
+<section id="results">
+    <div class="W">
+        <div class="r-head">
+            <span class="r-tag">R&eacute;sultats</span>
+            <span class="r-count"><em id="rCount">0</em> prospects</span>
+        </div>
+        <div class="icp-block">
+            <div class="icp-card">
+                <div class="icp-col-label">Profil client id&eacute;al</div>
+                <div class="icp-persona">
+                    <div class="icp-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="icp-persona-title" id="rPersonaTitle">—</div>
+                        <div class="icp-persona-sub" id="rPersonaSub">—</div>
+                    </div>
+                </div>
+                <div class="icp-tags" id="rTitleTags"></div>
+                <div class="icp-divider"></div>
+                <div class="company-label">Profil entreprise cible</div>
+                <div class="company-attrs" id="rCompanyAttrs"></div>
+            </div>
+            <div class="icp-proof">
+                <div class="icp-col-label">Pourquoi cet ICP &mdash; preuves &amp; sources</div>
+                <div id="rProofStats"></div>
+                <div class="proof-reasoning" id="rReasoningBlock" style="display:none">
+                    <div class="proof-reasoning-label">Raisonnement</div>
+                    <div class="proof-reasoning-text" id="rReasoningText"></div>
+                </div>
+            </div>
+        </div>
+        <div class="prospects-wrap">
+            <div class="p2-header">
+                <div class="p2-header-left">
+                    <div class="p2-count" id="rProspectsCount">0 prospects — tri&eacute;s par score</div>
+                    <div class="p2-title" id="rProspectsTitle">Liste de prospection</div>
+                </div>
+                <button class="btn-s lime" onclick="exportCSV()">&#x2193;&nbsp;Export CSV</button>
+            </div>
+            <table class="p2-table">
+                <thead>
+                    <tr>
+                        <th>Prospect</th>
+                        <th>Email</th>
+                        <th style="text-align:center;">Score</th>
+                        <th>Pourquoi ce prospect</th>
+                        <th style="text-align:center;">Outreach</th>
+                    </tr>
+                </thead>
+                <tbody id="rProspectsList"></tbody>
+            </table>
+            <div class="p2-export">
+                <div class="p2-export-meta" id="rExportMeta"></div>
+                <div class="p2-export-btns">
+                    <button class="btn-s" onclick="reset()">&#x2190;&nbsp;Nouvelle recherche</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="page-campaigns">
+    <div class="W">
+        <div class="pg-head">
+            <div class="pg-label">Outreach</div>
+            <div class="pg-title">Campagnes</div>
+            <div class="pg-sub">Suivi de statut par prospect contact&eacute; &mdash; cliquer sur le statut pour le faire avancer</div>
+        </div>
+        <div class="pg-body">
+            <div class="campaign-list" id="campaignList"></div>
+        </div>
+    </div>
+</section>
+
+<section id="page-history">
+    <div class="W">
+        <div class="pg-head">
+            <div class="pg-label">Moteur</div>
+            <div class="pg-title">Historique</div>
+            <div class="pg-sub">Toutes les recherches lanc&eacute;es, tous produits et r&eacute;gions confondus</div>
+        </div>
+        <div class="pg-body">
+            <div class="history-list" id="historyList"></div>
+        </div>
+    </div>
+</section>
+
+<section id="page-logs">
+    <div class="W">
+        <div class="pg-head">
+            <div class="pg-label">Moteur</div>
+            <div class="pg-title">Coulisses</div>
+            <div class="pg-sub">Tout ce que l&#8217;IA a cherch&eacute; et trouv&eacute; en arri&egrave;re-plan, par recherche</div>
+        </div>
+        <div class="pg-body">
+            <div class="history-list" id="logsList"></div>
+        </div>
+    </div>
+</section>
+
+<!-- EMAIL MODAL -->
+<div id="emailModal" onclick="closeEmailModal(event)">
+    <div class="em-box" onclick="event.stopPropagation()">
+        <div class="em-header">
+            <div class="em-title">&#x2709;&nbsp;Cold email &mdash; g&eacute;n&eacute;ration IA</div>
+            <button class="em-close" onclick="closeEmailModal()">&times;</button>
+        </div>
+        <div class="em-body">
+            <div class="em-field">
+                <div class="em-label">Destinataire</div>
+                <input class="em-input" id="emTo" type="email" placeholder="email@entreprise.com">
+            </div>
+            <div class="em-field">
+                <div class="em-label">Sujet</div>
+                <input class="em-input" id="emSubject" type="text" placeholder="G&eacute;n&eacute;ration en cours&hellip;">
+            </div>
+            <div class="em-field">
+                <div class="em-label">Corps</div>
+                <textarea class="em-input em-textarea" id="emBody" placeholder="G&eacute;n&eacute;ration en cours&hellip;"></textarea>
+            </div>
+        </div>
+        <div class="em-footer">
+            <div class="em-status" id="emStatus"></div>
+            <button class="btn-s" onclick="closeEmailModal()">Annuler</button>
+            <button class="btn-s lime" id="emSendBtn" onclick="sendEmail()" disabled>Envoyer &rarr;</button>
+        </div>
+    </div>
+</div>
+PLACEHOLDER_SCRIPT_TO_FOLLOW
