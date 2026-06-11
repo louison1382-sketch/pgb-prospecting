@@ -408,7 +408,7 @@
 <nav>
     <div class="W nav-i">
         <a class="logo" href="#" onclick="goHome(); return false;">
-            <span class="logo-n">Pillet Greni&#233;</span>
+            <span class="logo-n">Pillet Grenié</span>
             <span class="logo-b">BUREAU.</span>
         </a>
         <div class="nav-links">
@@ -448,10 +448,10 @@
                 <div class="upload-z" id="uploadZone">
                     <div class="upload-lft">
                         <span class="upload-ic">&uarr;</span>
-                        <div><p class="upload-main">PDF ou Markdown</p><p class="upload-hint">Texte extrait et inject&eacute; dans la description</p></div>
+                        <div><p class="upload-main">PDF, Markdown ou HTML</p><p class="upload-hint">Texte extrait et inject&eacute; dans la description</p></div>
                     </div>
                     <button class="upload-action" onclick="document.getElementById('fi').click()">Choisir</button>
-                    <input type="file" id="fi" accept=".pdf,.md,.txt" style="display:none">
+                    <input type="file" id="fi" accept=".pdf,.md,.txt,.html,.htm" style="display:none">
                 </div>
                 <div class="file-ok" id="fileOk">
                     <div class="file-ok-l"><div class="file-dot"></div><span class="file-name" id="fileName"></span></div>
@@ -651,7 +651,7 @@
         if (ext === 'md' || ext === 'txt') {
             document.getElementById('productDesc').value = await f.text();
             showFile(f.name);
-        } else if (ext === 'pdf') {
+        } else if (ext === 'pdf' || ext === 'html' || ext === 'htm') {
             showFile(f.name + ' (extraction...)');
             const fd = new FormData(); fd.append('file', f);
             try {
@@ -659,7 +659,7 @@
                 if (!r.ok) { const e = await r.json(); throw new Error(e.detail); }
                 document.getElementById('productDesc').value = (await r.json()).text;
                 showFile(f.name);
-            } catch (e) { clearFile(); showErr('Erreur PDF : ' + e.message); }
+            } catch (e) { clearFile(); showErr('Erreur extraction : ' + e.message); }
         } else { showErr('Format non supporté.'); }
     }
     function showFile(n) { uz.style.display = 'none'; const fo = document.getElementById('fileOk'); fo.style.display = 'flex'; document.getElementById('fileName').textContent = n; }
