@@ -25,7 +25,7 @@ from icp import generate_icp
 from prospecting import search_prospects
 from email_gen import generate_cold_email
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# ── Config ─────────────────────────────────────────────────────────
 
 ALLOWED_EMAILS: set[str] = {
     e.strip().lower()
@@ -90,7 +90,7 @@ async def _send_magic_link(to_email: str, token: str) -> None:
         resp.raise_for_status()
 
 
-# ── Lifespan ──────────────────────────────────────────────────────────────────
+# ── Lifespan ──────────────────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -128,7 +128,7 @@ async def auth_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-# ── Request models ────────────────────────────────────────────────────────────
+# ── Request models ──────────────────────────────────────────────────────────
 
 class LoginRequest(BaseModel):
     password: str
@@ -161,7 +161,7 @@ class StatusUpdateRequest(BaseModel):
     status: str | None = None   # direct status set
 
 
-# ── Routes auth ───────────────────────────────────────────────────────────────
+# ── Routes auth ──────────────────────────────────────────────────────────────
 
 @app.get("/login")
 async def login_page():
@@ -222,7 +222,7 @@ async def api_logout(response: Response):
     return {"success": True}
 
 
-# ── Routes app ────────────────────────────────────────────────────────────────
+# ── Routes app ─────────────────────────────────────────────────────────────────
 
 @app.get("/")
 async def root():
@@ -291,6 +291,11 @@ async def generate(req: GenerateRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur sourcing : {str(e)}")
 
+    # Logs de recherche (Coulisses) — collectés pendant l'ICP et le sourcing
+    logs = icp.pop("_logs", [])
+    for p in prospects:
+        p.pop("_logs", None)
+
     # Persist to database
     session_id = str(int(time.time() * 1000))
     if AsyncSessionLocal:
@@ -309,6 +314,7 @@ async def generate(req: GenerateRequest):
                     region=req.country,
                     campaign_name=campaign_name,
                     icp=icp,
+                    logs=logs,
                 )
                 db.add(db_session)
                 for i, p in enumerate(prospects):
@@ -323,7 +329,7 @@ async def generate(req: GenerateRequest):
         except Exception:
             pass  # Ne pas bloquer la réponse si la DB est indisponible
 
-    return {"icp": icp, "prospects": prospects, "session_id": session_id}
+    return {"icp": icp, "prospects": prospects, "session_id": session_id, "logs": logs}
 
 
 @app.get("/api/sessions")
@@ -347,6 +353,7 @@ async def get_sessions():
                 "region": s.region,
                 "icp": s.icp,
                 "campaign_name": s.campaign_name,
+                "logs": s.logs or [],
                 "prospects": [
                     {**p.data, "status": p.status, "note": p.note}
                     for p in s.prospects
