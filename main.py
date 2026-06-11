@@ -139,7 +139,7 @@ class MagicLinkRequest(BaseModel):
 
 
 class GenerateRequest(BaseModel):
-    product_description: str = Field(min_length=20, max_length=5000)
+    product_description: str = Field(min_length=20, max_length=20000)
     country: str = Field(default="France", max_length=50)
     num_results: int = Field(default=15, ge=5, le=30)
 
