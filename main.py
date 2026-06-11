@@ -249,10 +249,29 @@ async def parse_document(file: UploadFile = File(...)):
                 raise HTTPException(status_code=422, detail="PDF vide ou non lisible (scanné ?).")
         except ImportError:
             raise HTTPException(status_code=500, detail="pypdf non installé.")
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Erreur lecture PDF : {str(e)}")
+    elif filename.endswith(".html") or filename.endswith(".htm"):
+        try:
+            from bs4 import BeautifulSoup
+            html = content.decode("utf-8", errors="ignore")
+            soup = BeautifulSoup(html, "html.parser")
+            for tag in soup(["script", "style", "noscript"]):
+                tag.decompose()
+            raw_text = soup.get_text(separator="\n")
+            text = "\n".join(line.strip() for line in raw_text.splitlines() if line.strip())
+            if not text.strip():
+                raise HTTPException(status_code=422, detail="HTML vide ou non lisible.")
+        except ImportError:
+            raise HTTPException(status_code=500, detail="beautifulsoup4 non installé.")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Erreur lecture HTML : {str(e)}")
     else:
-        raise HTTPException(status_code=415, detail="Format non supporté. Utilise un PDF ou un fichier .md")
+        raise HTTPException(status_code=415, detail="Format non supporté. Utilise un PDF, un .md, un .txt ou un .html")
 
     return {"text": text.strip()}
 
