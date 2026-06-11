@@ -16,6 +16,11 @@ EXPLORIUM_BASE_URL = "https://api.explorium.ai/v1"
 
 claude = AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
+MODEL_HAIKU = "claude-haiku-4-5-20251001"
+MODEL_HAIKU_LABEL = "Claude Haiku 4.5"
+EXPLORIUM_LABEL = "Explorium API"
+SCORING_LABEL = "Scoring Python (reproductible)"
+
 REGION_MAP = {
     "Europe":                ["FR", "BE", "CH", "DE", "GB", "NL", "ES", "IT", "PT",
                               "SE", "DK", "NO", "FI", "AT", "LU"],
@@ -93,7 +98,7 @@ async def _standardize_intent_topics(client: httpx.AsyncClient, signals: list[st
     return [val for val in results if val]
 
 
-def _calculate_score(prospect: dict, icp: dict) -> int:
+def _calculate_score(prospect: dict, icp: dict) -> dict:
     """Score de matching ICP calculé en Python. Reproductible et explicable.
 
     Pondération :
@@ -101,45 +106,75 @@ def _calculate_score(prospect: dict, icp: dict) -> int:
     - Secteur         30 pts (match fort=30, match partiel=15)
     - Taille          20 pts (match exact=20, taille présente=10)
     - Email vérifié   10 pts
+
+    Retourne un détail (`score_breakdown`) en plus du total, pour affichage.
     """
-    score = 0
+    breakdown = {
+        "titre":   {"points": 0, "max": 40, "label": "Titre de poste",
+                     "detail": "Aucune correspondance avec les titres ICP."},
+        "secteur": {"points": 0, "max": 30, "label": "Secteur",
+                     "detail": "Aucune correspondance avec les secteurs ICP."},
+        "taille":  {"points": 0, "max": 20, "label": "Taille d'entreprise",
+                     "detail": "Taille inconnue."},
+        "email":   {"points": 0, "max": 10, "label": "Email vérifié",
+                     "detail": "Pas d'email vérifié."},
+    }
 
     # Titre (40 pts)
     job_titles_icp = [t.lower() for t in icp.get("job_titles", [])]
     poste = (prospect.get("Poste") or "").lower()
     if poste and any(t in poste or poste in t for t in job_titles_icp):
-        score += 40
+        breakdown["titre"]["points"] = 40
+        breakdown["titre"]["detail"] = "Correspondance forte avec un titre de l'ICP."
     elif poste and any(
         any(word in poste for word in t.split() if len(word) > 3)
         for t in job_titles_icp
     ):
-        score += 20
+        breakdown["titre"]["points"] = 20
+        breakdown["titre"]["detail"] = "Correspondance partielle avec un titre de l'ICP."
 
     # Secteur (30 pts)
     sectors_icp = [s.lower() for s in icp.get("sectors", [])]
     secteur = (prospect.get("Secteur") or "").lower()
     if secteur and any(s in secteur or secteur in s for s in sectors_icp):
-        score += 30
+        breakdown["secteur"]["points"] = 30
+        breakdown["secteur"]["detail"] = "Correspondance forte avec un secteur de l'ICP."
     elif secteur and any(
         any(word in secteur for word in s.split() if len(word) > 3)
         for s in sectors_icp
     ):
-        score += 15
+        breakdown["secteur"]["points"] = 15
+        breakdown["secteur"]["detail"] = "Correspondance partielle avec un secteur de l'ICP."
 
     # Taille (20 pts)
     sizes_icp = icp.get("company_size", [])
     taille = prospect.get("Taille") or ""
     if taille and any(s in taille or taille in s for s in sizes_icp):
-        score += 20
+        breakdown["taille"]["points"] = 20
+        breakdown["taille"]["detail"] = "Taille exactement dans la cible ICP."
     elif taille:
-        score += 10
+        breakdown["taille"]["points"] = 10
+        breakdown["taille"]["detail"] = "Taille connue mais hors cible ICP."
 
     # Email vérifié (10 pts)
     email = prospect.get("Email") or ""
     if email and "@" in email:
-        score += 10
+        breakdown["email"]["points"] = 10
+        breakdown["email"]["detail"] = "Email vérifié disponible (non « guessed »)."
 
-    return min(score, 100)
+    total = min(sum(b["points"] for b in breakdown.values()), 100)
+    return {"total": total, "breakdown": breakdown}
+
+
+PROSPECT_FIELD_SOURCES = {
+    "Nom": EXPLORIUM_LABEL, "Poste": EXPLORIUM_LABEL, "Entreprise": EXPLORIUM_LABEL,
+    "Secteur": EXPLORIUM_LABEL, "Taille": EXPLORIUM_LABEL, "LinkedIn": EXPLORIUM_LABEL,
+    "Website": EXPLORIUM_LABEL, "Ville": EXPLORIUM_LABEL,
+    "Email": f"{EXPLORIUM_LABEL} (enrichissement, emails « guessed » filtrés)",
+    "score": SCORING_LABEL,
+    "score_breakdown": SCORING_LABEL,
+    "arguments": f"{MODEL_HAIKU_LABEL} ({MODEL_HAIKU})",
+}
 
 
 async def enrich_prospects_with_arguments(prospects: list, icp: dict) -> list:
@@ -201,15 +236,28 @@ Règles :
     try:
         enriched = json.loads(raw)
         for i, prospect in enumerate(prospects):
-            prospect["score"] = _calculate_score(prospect, icp)
+            sc = _calculate_score(prospect, icp)
+            prospect["score"] = sc["total"]
+            prospect["score_breakdown"] = sc["breakdown"]
             if i < len(enriched):
                 prospect["arguments"] = enriched[i].get("arguments", [])
             else:
                 prospect.setdefault("arguments", [])
+            prospect["_sources"] = PROSPECT_FIELD_SOURCES
     except (json.JSONDecodeError, IndexError):
         for p in prospects:
-            p["score"] = _calculate_score(p, icp)
+            sc = _calculate_score(p, icp)
+            p["score"] = sc["total"]
+            p["score_breakdown"] = sc["breakdown"]
             p.setdefault("arguments", [])
+            p["_sources"] = PROSPECT_FIELD_SOURCES
+
+    icp.setdefault("_logs", []).append({
+        "step": "Enrichissement prospects — arguments + scoring",
+        "model": f"{MODEL_HAIKU_LABEL} ({MODEL_HAIKU}) + {SCORING_LABEL}",
+        "input": prompt,
+        "output": raw,
+    })
 
     return prospects
 
@@ -231,7 +279,7 @@ async def search_prospects(icp: dict, country: str = "France", num_results: int 
         )
 
     async with httpx.AsyncClient(headers=_headers()) as client:
-        # ── 1. Standardisation des filtres (parallèle) ──────────────────────
+        # ── 1. Standardisation des filtres (parallèle) ─────────────────────────────
         job_titles, intent_topics = await asyncio.gather(
             _standardize_job_titles(client, icp.get("job_titles", [])),
             _standardize_intent_topics(client, icp.get("intent_signals", [])),
@@ -243,7 +291,7 @@ async def search_prospects(icp: dict, country: str = "France", num_results: int 
         # Taille d'entreprise
         sizes = [SIZE_MAP[s] for s in icp.get("company_size", ["11-50", "51-200"]) if s in SIZE_MAP]
 
-        # ── 2. Fetch prospects ───────────────────────────────────────────────
+        # ── 2. Fetch prospects ────────────────────────────────────────────────────────
         filters: dict = {"has_email": {"value": True}}
         if job_titles:
             filters["job_title"] = {"values": job_titles}
@@ -259,15 +307,24 @@ async def search_prospects(icp: dict, country: str = "France", num_results: int 
 
         page_size = max(1, min(num_results, 100))
 
+        fetch_payload = {
+            "mode": "full",
+            "size": num_results,
+            "page_size": page_size,
+            "page": 1,
+            "filters": filters,
+        }
+
+        icp.setdefault("_logs", []).append({
+            "step": "Standardisation des filtres (titres de poste + signaux d'achat)",
+            "model": f"{EXPLORIUM_LABEL} — autocomplete",
+            "input": json.dumps({"job_titles": icp.get("job_titles", []), "intent_signals": icp.get("intent_signals", [])}, ensure_ascii=False),
+            "output": json.dumps({"job_titles": job_titles, "intent_topics": intent_topics}, ensure_ascii=False),
+        })
+
         fetch_resp = await client.post(
             f"{EXPLORIUM_BASE_URL}/prospects",
-            json={
-                "mode": "full",
-                "size": num_results,
-                "page_size": page_size,
-                "page": 1,
-                "filters": filters,
-            },
+            json=fetch_payload,
             timeout=30,
         )
 
@@ -279,12 +336,19 @@ async def search_prospects(icp: dict, country: str = "France", num_results: int 
         fetch_data = fetch_resp.json()
         raw_prospects = fetch_data.get("prospects", fetch_data.get("data", []))
 
+        icp.setdefault("_logs", []).append({
+            "step": "Sourcing des prospects",
+            "model": f"{EXPLORIUM_LABEL} — /v1/prospects",
+            "input": json.dumps(fetch_payload, ensure_ascii=False),
+            "output": f"{len(raw_prospects)} prospect(s) trouvé(s)",
+        })
+
         if not raw_prospects:
             return []
 
         prospect_ids = [p["prospect_id"] for p in raw_prospects if p.get("prospect_id")]
 
-        # ── 3. Bulk enrich contacts — filtre les emails guessés ─────────────
+        # ── 3. Bulk enrich contacts — filtre les emails guessés ─────────────────
         # Les emails guessés ont un bounce rate de 20-40% → classent la boîte en spam
         enrich_resp = await client.post(
             f"{EXPLORIUM_BASE_URL}/prospects/contacts_information/bulk_enrich",
@@ -302,7 +366,14 @@ async def search_prospects(icp: dict, country: str = "France", num_results: int 
                     if verified:
                         email_map[pid] = verified[0].get("email", "")
 
-    # ── 4. Normalisation en format interne ──────────────────────────────────
+        icp.setdefault("_logs", []).append({
+            "step": "Enrichissement des emails (filtrage des emails « guessed »)",
+            "model": f"{EXPLORIUM_LABEL} — /v1/prospects/contacts_information/bulk_enrich",
+            "input": f"{len(prospect_ids)} prospect_id(s)",
+            "output": f"{len(email_map)} email(s) vérifié(s) trouvé(s)",
+        })
+
+    # ── 4. Normalisation en format interne ────────────────────────────────────
     prospects = []
     for p in raw_prospects:
         pid = p.get("prospect_id", "")
@@ -319,7 +390,7 @@ async def search_prospects(icp: dict, country: str = "France", num_results: int 
             "Ville":      p.get("city") or p.get("city_name", ""),
         })
 
-    # ── 5. Score Python + arguments Claude Haiku ─────────────────────────────
+    # ── 5. Score Python + arguments Claude Haiku ─────────────────────────
     prospects = await enrich_prospects_with_arguments(prospects, icp)
     prospects.sort(key=lambda p: p.get("score", 0), reverse=True)
 
