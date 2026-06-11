@@ -1,0 +1,360 @@
+<script>
+    /* CURSOR */
+    const C = document.getElementById('cur'), A = document.getElementById('aura');
+    let ax = 0, ay = 0, mx = 0, my = 0;
+    document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; C.style.left = mx + 'px'; C.style.top = my + 'px'; });
+    (function t() { ax += (mx - ax) * .1; ay += (my - ay) * .1; A.style.left = ax + 'px'; A.style.top = ay + 'px'; requestAnimationFrame(t); })();
+    document.querySelectorAll('button, a, input, select, textarea').forEach(el => {
+        el.addEventListener('mouseenter', () => C.classList.add('h'));
+        el.addEventListener('mouseleave', () => C.classList.remove('h'));
+    });
+
+    /* SLIDER */
+    document.getElementById('numP').addEventListener('input', function () {
+        document.getElementById('sv').textContent = this.value;
+        document.getElementById('svDisplay').textContent = this.value;
+    });
+
+    /* FILE UPLOAD */
+    const uz = document.getElementById('uploadZone');
+    uz.addEventListener('dragover', e => { e.preventDefault(); uz.classList.add('dg'); });
+    uz.addEventListener('dragleave', () => uz.classList.remove('dg'));
+    uz.addEventListener('drop', e => { e.preventDefault(); uz.classList.remove('dg'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+    document.getElementById('fi').addEventListener('change', function () { if (this.files[0]) handleFile(this.files[0]); });
+
+    async function handleFile(f) {
+        const ext = f.name.split('.').pop().toLowerCase();
+        if (ext === 'md' || ext === 'txt') {
+            document.getElementById('productDesc').value = await f.text();
+            showFile(f.name);
+        } else if (ext === 'pdf' || ext === 'html' || ext === 'htm') {
+            showFile(f.name + ' (extraction...)');
+            const fd = new FormData(); fd.append('file', f);
+            try {
+                const r = await fetch('/api/parse-document', { method: 'POST', body: fd });
+                if (!r.ok) { const e = await r.json(); throw new Error(e.detail); }
+                document.getElementById('productDesc').value = (await r.json()).text;
+                showFile(f.name);
+            } catch (e) { clearFile(); showErr('Erreur extraction : ' + e.message); }
+        } else { showErr('Format non supporté.'); }
+    }
+    function showFile(n) { uz.style.display = 'none'; const fo = document.getElementById('fileOk'); fo.style.display = 'flex'; document.getElementById('fileName').textContent = n; }
+    function clearFile() { document.getElementById('fi').value = ''; uz.style.display = 'flex'; document.getElementById('fileOk').style.display = 'none'; document.getElementById('productDesc').value = ''; }
+
+    /* STEPS */
+    function setStep(n) {
+        [1, 2, 3].forEach(i => {
+            const el = document.getElementById('step' + i);
+            el.classList.remove('active', 'done');
+            if (i === n) el.classList.add('active');
+            else if (i < n) el.classList.add('done');
+        });
+    }
+
+    /* LOADING */
+    let lt;
+    function startLoad() {
+        ['ls1', 'ls2', 'ls3', 'ls4'].forEach(id => document.getElementById(id).classList.remove('a', 'd'));
+        let c = 0; document.getElementById('ls1').classList.add('a');
+        lt = setInterval(() => { if (c < 3) { document.getElementById('ls' + (c + 1)).classList.replace('a', 'd'); c++; document.getElementById('ls' + (c + 1)).classList.add('a'); } }, 2800);
+    }
+    function stopLoad() {
+        clearInterval(lt);
+        ['ls1', 'ls2', 'ls3', 'ls4'].forEach(id => {
+            const el = document.getElementById(id);
+            el.classList.remove('a');
+            el.classList.add('d');
+        });
+    }
+
+    /* PAGE MANAGEMENT */
+    function showSection(id) {
+        ['formSection', 'loading', 'results', 'page-campaigns', 'page-history', 'page-logs'].forEach(s => {
+            const el = document.getElementById(s);
+            if (el) el.style.display = 'none';
+        });
+        document.getElementById('heroSection').style.display = 'none';
+        document.getElementById('stepsBar').style.display = 'none';
+        document.getElementById('errBar').style.display = 'none';
+        ['navCampaigns', 'navHistory', 'navLogs'].forEach(id => document.getElementById(id).classList.remove('active'));
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'block';
+    }
+
+    function goHome() {
+        ['loading', 'results', 'page-campaigns', 'page-history', 'page-logs'].forEach(s => {
+            const el = document.getElementById(s);
+            if (el) el.style.display = 'none';
+        });
+        document.getElementById('heroSection').style.display = 'block';
+        document.getElementById('stepsBar').style.display = 'block';
+        document.getElementById('formSection').style.display = 'block';
+        document.getElementById('errBar').style.display = 'none';
+        ['navCampaigns', 'navHistory', 'navLogs'].forEach(id => document.getElementById(id).classList.remove('active'));
+        setStep(1);
+        clearViewState();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* PERSISTANCE — garde la vue courante en mémoire pour survivre à un refresh */
+    function saveViewState(state) {
+        try { localStorage.setItem('pgb_view_state', JSON.stringify(state)); } catch {}
+    }
+    function clearViewState() {
+        try { localStorage.removeItem('pgb_view_state'); } catch {}
+    }
+    function loadViewState() {
+        try {
+            const raw = localStorage.getItem('pgb_view_state');
+            return raw ? JSON.parse(raw) : null;
+        } catch { return null; }
+    }
+
+    function showTab(tab) {
+        showSection('page-' + tab);
+        document.getElementById('nav' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (tab === 'campaigns') renderCampaigns();
+        if (tab === 'history') renderHistory();
+        if (tab === 'logs') renderLogs();
+        saveViewState({ view: 'tab', tab });
+    }
+
+    /* GENERATE */
+    let prsp = [], currentIcp = {}, currentDesc = '', currentRegion = '', currentSessionId = '';
+
+    async function generate() {
+        const desc = document.getElementById('productDesc').value.trim();
+        if (!desc) { showErr('Décris ton service avant de lancer.'); return; }
+        hideErr();
+        currentDesc = desc;
+        currentRegion = document.getElementById('region').value;
+
+        showSection('loading');
+        document.getElementById('heroSection').style.display = 'none';
+        document.getElementById('stepsBar').style.display = 'block';
+        setStep(2); startLoad();
+
+        try {
+            const r = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    product_description: desc,
+                    country: currentRegion,
+                    num_results: parseInt(document.getElementById('numP').value)
+                })
+            });
+            stopLoad();
+            if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Erreur serveur'); }
+            const data = await r.json();
+            if (data.session_id) currentSessionId = data.session_id;
+            render(data);
+            saveViewState({ view: 'results', data, sessionId: currentSessionId, desc: currentDesc, region: currentRegion });
+        } catch (e) {
+            stopLoad();
+            goHome();
+            showErr('Erreur : ' + e.message);
+        }
+    }
+
+    /* SOURCE ASTERISK — montre quelle IA/version a produit une donnée */
+    function srcMark(sources, key) {
+        const label = (sources || {})[key];
+        if (!label) return '';
+        return `<span class="src-mark" title="Donnée générée par : ${label}">*</span>`;
+    }
+
+    /* SCORE — icône (i) + volet roulant détail */
+    function scoreCell(score, breakdown, uid) {
+        const sc = score >= 80 ? 'hi' : 'md';
+        if (!breakdown) {
+            return `<div class="p2-score">
+                <div class="p2-score-num ${sc}">${score}</div>
+                <div class="p2-score-bar"><div class="p2-score-fill ${sc}" style="width:${score}%"></div></div>
+            </div>`;
+        }
+        const rows = Object.values(breakdown).map(b => `
+            <div class="score-detail-row">
+                <div>
+                    <div class="score-detail-label">${b.label}</div>
+                    <div class="score-detail-desc">${b.detail}</div>
+                </div>
+                <div class="score-detail-pts">${b.points}/${b.max}</div>
+            </div>`).join('');
+        return `<div class="p2-score">
+            <div style="display:flex;align-items:center;gap:5px;">
+                <div class="p2-score-num ${sc}">${score}</div>
+                <div class="score-i" onclick="toggleScoreDetail(this, event)">i</div>
+            </div>
+            <div class="p2-score-bar"><div class="p2-score-fill ${sc}" style="width:${score}%"></div></div>
+            <div class="score-detail" id="scoreDetail${uid}">
+                <div class="score-detail-title">Détail du score <span class="src-mark" title="Donnée générée par : Scoring Python (reproductible)">*</span></div>
+                ${rows}
+                <div class="score-detail-total"><span>Total</span><span>${score}/100</span></div>
+            </div>
+        </div>`;
+    }
+
+    function toggleScoreDetail(el, e) {
+        e.stopPropagation();
+        const panel = el.parentElement.nextElementSibling;
+        const wasOpen = panel.classList.contains('open');
+        document.querySelectorAll('.score-detail.open').forEach(p => p.classList.remove('open'));
+        document.querySelectorAll('.score-i.open').forEach(i => i.classList.remove('open'));
+        if (!wasOpen) { panel.classList.add('open'); el.classList.add('open'); }
+    }
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.score-detail.open').forEach(p => p.classList.remove('open'));
+        document.querySelectorAll('.score-i.open').forEach(i => i.classList.remove('open'));
+    });
+
+    /* RENDER RESULTS */
+    function render({ icp, prospects }) {
+        prsp = prospects;
+        currentIcp = icp;
+
+        const icpSrc = icp._sources || {};
+        document.getElementById('rPersonaTitle').innerHTML = (icp.persona_title || (icp.job_titles || [''])[0] || '—') + srcMark(icpSrc, 'persona_title');
+        document.getElementById('rPersonaSub').innerHTML = (icp.persona_subtitle || 'Décideur direct sur ce type de service') + srcMark(icpSrc, 'persona_subtitle');
+
+        document.getElementById('rTitleTags').innerHTML = (icp.job_titles || []).map((t, i) =>
+            `<span class="icp-tag${i < 3 ? ' hl' : ''}">${t}</span>`).join('');
+
+        const cp = icp.company_profile || {};
+        document.getElementById('rCompanyAttrs').innerHTML = [
+            { k: 'Taille', v: cp.taille || (icp.company_size || []).join(', ') || '—' },
+            { k: 'Secteur', v: cp.secteur || (icp.sectors || []).slice(0, 2).join(', ') || '—' },
+            { k: 'Signal', v: cp.signal || (icp.intent_signals || [''])[0] || '—' },
+            { k: 'Géo', v: cp.geo || currentRegion || '—' },
+            { k: 'Maturité', v: cp.maturite || '—' },
+            { k: 'Budget', v: cp.budget || '—' },
+        ].map(f => `<div class="c-attr"><div class="c-attr-k">${f.k}</div><div class="c-attr-v">${f.v}${srcMark(icpSrc, 'company_profile')}</div></div>`).join('');
+
+        const proof = icp.proof || [];
+        if (proof.length) {
+            document.getElementById('rProofStats').innerHTML = proof.map(p => `
+                <div class="proof-stat">
+                    <div class="proof-num">${p.stat}</div>
+                    <div>
+                        <div class="proof-text">${(p.description || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}${srcMark(icpSrc, 'proof')}</div>
+                        <div class="proof-src">${p.source || ''}</div>
+                    </div>
+                </div>`).join('');
+        } else {
+            document.getElementById('rProofStats').innerHTML = (icp.intent_signals || []).map(s =>
+                `<div class="proof-stat"><div class="proof-num">&rarr;</div><div><div class="proof-text">${s}</div></div></div>`).join('');
+        }
+
+        if (icp.reasoning) {
+            document.getElementById('rReasoningText').innerHTML = icp.reasoning + srcMark(icpSrc, 'reasoning');
+            document.getElementById('rReasoningBlock').style.display = 'block';
+        } else {
+            document.getElementById('rReasoningBlock').style.display = 'none';
+        }
+
+        document.getElementById('rCount').textContent = prospects.length;
+        document.getElementById('rProspectsCount').textContent = prospects.length + ' prospects — triés par score de matching';
+        document.getElementById('rProspectsTitle').textContent = 'Liste de prospection — ' + currentRegion;
+        document.getElementById('rExportMeta').textContent = prospects.length + ' prospects · export CSV disponible';
+
+        const extIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
+        const liIcon = `<svg viewBox="0 0 24 24" fill="currentColor" width="8" height="8"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>`;
+        const webIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="8" height="8"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+
+        document.getElementById('rProspectsList').innerHTML = prospects.map((p, i) => {
+            const score = p.score || 0;
+            const args = p.arguments || [];
+            const hasLI = p.LinkedIn && p.LinkedIn !== '';
+            const hasWeb = p.Website && p.Website !== '';
+            const webLabel = hasWeb ? p.Website.replace('https://', '').replace('http://', '').split('/')[0] : '';
+            const psrc = p._sources || {};
+
+            const argsHtml = args.map(a => `
+                <li class="p2-arg">
+                    <div class="p2-arg-dot"></div>
+                    <div class="p2-arg-text">${(a.text || '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}${a.source_url ? `<a class="p2-arg-src" href="${a.source_url}" target="_blank" onclick="event.stopPropagation()">${extIcon}${a.source_label || 'Source'}</a>` : ''}</div>
+                </li>`).join('');
+
+            const emailBtn = (score >= 85 && p.Email)
+                ? `<button class="btn-email" onclick="openEmailModal(${i});event.stopPropagation()">&#x2709;&nbsp;Email</button>`
+                : `<span style="color:#1a1a1a;font-family:'JetBrains Mono',monospace;font-size:9px;">—</span>`;
+
+            return `<tr>
+                <td>
+                    <div class="p2-name">${p.Nom || '—'}${srcMark(psrc, 'Nom')}</div>
+                    <div class="p2-role">${p.Poste || '—'}${p.Entreprise ? ' · ' + p.Entreprise : ''}</div>
+                    <div class="p2-links">
+                        ${hasLI ? `<a class="p2-link li" href="${p.LinkedIn}" target="_blank">${liIcon}LinkedIn</a>` : ''}
+                        ${hasWeb ? `<a class="p2-link web" href="${p.Website}" target="_blank">${webIcon}${webLabel}</a>` : ''}
+                    </div>
+                </td>
+                <td><span class="p2-email${!p.Email ? ' none' : ''}">${p.Email || 'Non disponible'}</span>${p.Email ? srcMark(psrc, 'Email') : ''}</td>
+                <td>${scoreCell(score, p.score_breakdown, i)}</td>
+                <td><ul class="p2-args">${argsHtml}</ul>${args.length ? srcMark(psrc, 'arguments') : ''}</td>
+                <td style="vertical-align:middle;text-align:center;">${emailBtn}</td>
+            </tr>`;
+        }).join('');
+
+        showSection('results');
+        document.getElementById('stepsBar').style.display = 'block';
+        setStep(3);
+        document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    /* EXPORT CSV */
+    function exportCSV() {
+        if (!prsp.length) return;
+        const cols = ['Nom', 'Poste', 'Entreprise', 'Secteur', 'Taille', 'Email', 'LinkedIn', 'Website', 'Ville', 'score'];
+        const rows = prsp.map(p => cols.map(k => `"${String(p[k] || '').replace(/"/g, '""')}"`).join(','));
+        const blob = new Blob(['﻿' + [cols.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `prospects_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    /* RESET */
+    function reset() { prsp = []; goHome(); document.getElementById('productDesc').value = ''; clearFile(); }
+
+    /* ERRORS */
+    function showErr(m) { const b = document.getElementById('errBar'); b.textContent = m; b.style.display = 'block'; }
+    function hideErr() { document.getElementById('errBar').style.display = 'none'; }
+
+    /* SESSIONS — API-backed */
+    async function getSessions() {
+        try {
+            const r = await fetch('/api/sessions');
+            if (!r.ok) return [];
+            return await r.json();
+        } catch { return []; }
+    }
+
+    /* STATUS CYCLING */
+    const STATUS_CONFIG = {
+        waiting:  { label: 'En attente', cls: 'sp-wait' },
+        followup: { label: 'Rellancé',    cls: 'sp-follow' },
+        replied:  { label: 'Répondu',    cls: 'sp-replied' },
+        signed:   { label: 'Signé',      cls: 'sp-signed' },
+        lost:     { label: 'Perdu',      cls: 'sp-lost' }
+    };
+    const STATUS_ORDER = ['waiting', 'followup', 'replied', 'signed', 'lost'];
+
+    async function cycleStatus(sessionId, idx, e) {
+        e.stopPropagation();
+        try {
+            await fetch(`/api/sessions/${sessionId}/prospects/${idx}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'cycle' })
+            });
+            await renderCampaigns();
+        } catch {}
+    }
+
+    function statusPill(status, sessionId, idx) {
+        const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.waiting;
+        return `<div class="sp ${cfg.cls}" onclick="cycleStatus('${sessionId}', ${idx}, event)">${cfg.label}</div>`;
+    }
+
+    function toggleCard(el) { el.classList.toggle('open'); }
+PLACEHOLDER_CAMPAIGNS_HISTORY_LOGS_EMAIL_INIT_TO_FOLLOW
