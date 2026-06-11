@@ -12,11 +12,16 @@ load_dotenv()
 
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
+MODEL_HAIKU = "claude-haiku-4-5-20251001"
+MODEL_SONNET = "claude-sonnet-4-6"
+MODEL_HAIKU_LABEL = "Claude Haiku 4.5"
+MODEL_SONNET_LABEL = "Claude Sonnet 4.6"
+
 # Cache en mémoire — évite de rebrûler des crédits sur les mêmes tests
 # Reset au redémarrage Railway (acceptable pour 3 utilisateurs internes)
 _icp_cache: dict[str, dict] = {}
 
-# ── PROMPT 1 — Structure ICP (Haiku) ────────────────────────────────────────
+# ── PROMPT 1 — Structure ICP (Haiku) ──────────────────────────────────────────────────────────────────
 
 ICP_STRUCTURE_PROMPT = """Tu es un expert en marketing B2B et prospection commerciale.
 
@@ -59,7 +64,7 @@ Guidelines :
 Réponds UNIQUEMENT avec le JSON valide, sans texte avant ou après."""
 
 
-# ── PROMPT 2 — Proof stats + reasoning (Sonnet) ─────────────────────────────
+# ── PROMPT 2 — Proof stats + reasoning (Sonnet) ─────────────────────────────────────
 
 PROOF_PROMPT = """Tu es un expert en marketing B2B.
 
@@ -124,39 +129,66 @@ def generate_icp(product_description: str) -> dict:
     if cache_key in _icp_cache:
         return _icp_cache[cache_key]
 
+    logs: list[dict] = []
+
     # Appel 1 — Haiku pour la structure
+    structure_prompt = ICP_STRUCTURE_PROMPT.format(product_description=product_description)
     structure_msg = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model=MODEL_HAIKU,
         max_tokens=1024,
-        messages=[{
-            "role": "user",
-            "content": ICP_STRUCTURE_PROMPT.format(product_description=product_description)
-        }]
+        messages=[{"role": "user", "content": structure_prompt}]
     )
     raw = _clean_json(structure_msg.content[0].text)
     icp = json.loads(raw)
 
+    logs.append({
+        "step": "Génération ICP — structure",
+        "model": f"{MODEL_HAIKU_LABEL} ({MODEL_HAIKU})",
+        "input": structure_prompt,
+        "output": raw,
+    })
+
     # Appel 2 — Sonnet pour les preuves
+    proof_prompt = PROOF_PROMPT.format(
+        product_description=product_description,
+        persona_title=icp.get("persona_title", ""),
+        sectors=", ".join(icp.get("sectors", [])),
+        intent_signals=", ".join(icp.get("intent_signals", [])),
+    )
     proof_msg = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=MODEL_SONNET,
         max_tokens=1024,
-        messages=[{
-            "role": "user",
-            "content": PROOF_PROMPT.format(
-                product_description=product_description,
-                persona_title=icp.get("persona_title", ""),
-                sectors=", ".join(icp.get("sectors", [])),
-                intent_signals=", ".join(icp.get("intent_signals", [])),
-            )
-        }]
+        messages=[{"role": "user", "content": proof_prompt}]
     )
     raw_proof = _clean_json(proof_msg.content[0].text)
     proof_data = json.loads(raw_proof)
+
+    logs.append({
+        "step": "Génération ICP — preuves & raisonnement",
+        "model": f"{MODEL_SONNET_LABEL} ({MODEL_SONNET})",
+        "input": proof_prompt,
+        "output": raw_proof,
+    })
 
     # Merge — avec disclaimer explicite sur les stats
     icp["proof"] = proof_data.get("proof", [])
     icp["reasoning"] = proof_data.get("reasoning", "")
     icp["proof_disclaimer"] = PROOF_DISCLAIMER
+
+    # Provenance — quel modèle a produit quels champs
+    icp["_sources"] = {
+        "persona_title": f"{MODEL_HAIKU_LABEL} ({MODEL_HAIKU})",
+        "persona_subtitle": f"{MODEL_HAIKU_LABEL} ({MODEL_HAIKU})",
+        "sectors": f"{MODEL_HAIKU_LABEL} ({MODEL_HAIKU})",
+        "company_size": f"{MODEL_HAIKU_LABEL} ({MODEL_HAIKU})",
+        "job_titles": f"{MODEL_HAIKU_LABEL} ({MODEL_HAIKU})",
+        "job_departments": f"{MODEL_HAIKU_LABEL} ({MODEL_HAIKU})",
+        "intent_signals": f"{MODEL_HAIKU_LABEL} ({MODEL_HAIKU})",
+        "company_profile": f"{MODEL_HAIKU_LABEL} ({MODEL_HAIKU})",
+        "proof": f"{MODEL_SONNET_LABEL} ({MODEL_SONNET})",
+        "reasoning": f"{MODEL_SONNET_LABEL} ({MODEL_SONNET})",
+    }
+    icp["_logs"] = logs
 
     _icp_cache[cache_key] = icp
     return icp
