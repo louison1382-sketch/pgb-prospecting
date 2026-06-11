@@ -38,8 +38,9 @@ SIZE_MAP = {
 
 def _headers() -> dict:
     return {
-        "X-API-Key": EXPLORIUM_API_KEY,
+        "api_key": EXPLORIUM_API_KEY,
         "Content-Type": "application/json",
+        "Accept": "application/json",
     }
 
 
