@@ -32,6 +32,7 @@ class DBSession(Base):
     region: Mapped[str] = mapped_column(String(100))
     campaign_name: Mapped[str] = mapped_column(Text)
     icp: Mapped[dict] = mapped_column(JSONB)
+    logs: Mapped[list] = mapped_column(JSONB, default=list)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
